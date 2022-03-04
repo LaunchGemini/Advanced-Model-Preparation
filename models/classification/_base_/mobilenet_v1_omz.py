@@ -5,8 +5,8 @@ model = dict(
     backbone=dict(
         type='OmzBackboneCls',
         mode='train',
-        model_path='public/googlenet-v3/FP32/googlenet-v3.xml',
-        last_layer_name='InceptionV3/InceptionV3/Mixed_7c/concat_v2',
+        model_path='public/mobilenet-v1-1.0-224/FP32/mobilenet-v1-1.0-224.xml',
+        last_layer_name='relu6/sep',
         normalized_img_input=True
     ),
     neck=dict(
@@ -14,6 +14,6 @@ model = dict(
     head=dict(
         type='LinearClsHead',
         num_classes=1000,
-        in_channels=2048,
+        in_channels=1024,
         loss=dict(type='CrossEntropyLoss', loss_weight=1.0),
     ))
