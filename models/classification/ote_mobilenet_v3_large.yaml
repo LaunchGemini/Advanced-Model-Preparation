@@ -1,0 +1,14 @@
+_base_: _base_/ote_mobilenet_v3.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    backbone:
+        mode: large
+    head:
+        type: CustomNonLinearClsHead
+        in_channels: 960
+        hid_channels: 1280
+        loss:
+            type: CrossEntropyLoss
+            loss_weight: 1.0

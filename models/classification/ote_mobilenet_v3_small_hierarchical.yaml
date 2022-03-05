@@ -1,12 +1,11 @@
-_base_: _base_/ote_efficientnet_v2.py
+
+_base_: _base_/ote_mobilenet_v3.py
 
 model:
     type: SAMImageClassifier
     task: classification
-    backbone:
-        version: s_21k
     head:
-        type: CustomHierarchicalLinearClsHead
+        type: CustomHierarchicalNonLinearClsHead
         multilabel_loss:
             type: AsymmetricLossWithIgnore
             gamma_pos: 0.0

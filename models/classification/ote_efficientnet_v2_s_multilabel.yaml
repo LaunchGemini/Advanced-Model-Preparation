@@ -1,3 +1,4 @@
+
 _base_: _base_/ote_efficientnet_v2.py
 
 model:
@@ -6,8 +7,8 @@ model:
     backbone:
         version: s_21k
     head:
-        type: CustomHierarchicalLinearClsHead
-        multilabel_loss:
+        type: CustomMultiLabelLinearClsHead
+        loss:
             type: AsymmetricLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 4.0
+            gamma_neg: 0.0
