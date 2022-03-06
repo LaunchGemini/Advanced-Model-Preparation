@@ -1,3 +1,4 @@
+
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     type='ClassIncrSegmentor',
@@ -13,32 +14,33 @@ model = dict(
                 out_channels=32,
                 expand_ratio=1,
                 strides=(2, 2),
-                extra_stride=False,
+                extra_stride=True,
                 input_norm=False,
             ),
-            num_stages=3,
+            num_stages=2,
             stages_spec=dict(
-                num_modules=(2, 4, 2),
-                num_branches=(2, 3, 4),
-                num_blocks=(2, 2, 2),
-                module_type=('LITE', 'LITE', 'LITE'),
-                with_fuse=(True, True, True),
-                reduce_ratios=(8, 8, 8),
+                neighbour_weighting=False,
+                weighting_module_version='v1',
+                num_modules=(4, 4),
+                num_branches=(2, 3),
+                num_blocks=(2, 2),
+                module_type=('LITE', 'LITE'),
+                with_fuse=(True, True),
+                reduce_ratios=(8, 8),
                 num_channels=(
-                    (40, 80),
-                    (40, 80, 160),
-                    (40, 80, 160, 320),
+                    (60, 120),
+                    (60, 120, 240),
                 )
             ),
             out_modules=dict(
                 conv=dict(
                     enable=False,
-                    channels=320
+                    channels=160
                 ),
                 position_att=dict(
                     enable=False,
-                    key_channels=128,
-                    value_channels=320,
+                    key_channels=64,
+                    value_channels=240,
                     psp_size=(1, 3, 6, 8),
                 ),
                 local_att=dict(
@@ -53,10 +55,10 @@ model = dict(
     ),
     decode_head=dict(
         type='FCNHead',
-        in_channels=[40, 80, 160, 320],
-        in_index=[0, 1, 2, 3],
+        in_channels=[60, 120, 240],
+        in_index=[0, 1, 2],
         input_transform='multiple_select',
-        channels=40,
+        channels=60,
         kernel_size=1,
         num_convs=1,
         concat_input=False,
@@ -65,7 +67,10 @@ model = dict(
         norm_cfg=__norm_cfg,
         align_corners=False,
         enable_aggregator=True,
+        aggregator_merge_norm=None,
+        aggregator_use_concat=False,
         enable_out_norm=False,
+        enable_loss_equalizer=True,
         loss_decode=[
             dict(type='CrossEntropyLoss',
                  use_sigmoid=False,
