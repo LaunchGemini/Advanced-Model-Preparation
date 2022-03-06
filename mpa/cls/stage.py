@@ -76,4 +76,73 @@ class ClsStage(Stage):
                 self.model_classes = dst_classes
         else:
             if 'num_classes' not in cfg.data:
-                cfg.data.num_classes = len(cfg.data.tra
+                cfg.data.num_classes = len(cfg.data.train.get('classes', []))
+            cfg.model.head.num_classes = cfg.data.num_classes
+
+        if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
+            cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
+            if cfg.model.get('multilabel', False) or cfg.model.get('hierarchical', False):
+                cfg.model.head.pop('topk', None)
+
+        return cfg
+
+    @staticmethod
+    def configure_model(cfg, training, **kwargs):
+        # verify and update model configurations
+        # check whether in/out of the model layers require updating
+
+        if cfg.get('load_from', None) and cfg.model.backbone.get('pretrained', None):
+            cfg.model.backbone.pretrained = None
+
+        update_required = False
+        if cfg.model.get('neck') is not None:
+            if cfg.model.neck.get('in_channels') is not None and cfg.model.neck.in_channels <= 0:
+                update_required = True
+        if not update_required and cfg.model.get('head') is not None:
+            if cfg.model.head.get('in_channels') is not None and cfg.model.head.in_channels <= 0:
+                update_required = True
+        if not update_required:
+            return
+
+        # update model layer's in/out configuration
+        input_shape = [3, 224, 224]
+        logger.debug(f'input shape for backbone {input_shape}')
+        from mmcls.models.builder import BACKBONES as backbone_reg
+        layer = build_from_cfg(cfg.model.backbone, backbone_reg)
+        output = layer(torch.rand([1] + input_shape))
+        if isinstance(output, (tuple, list)):
+            output = output[-1]
+        output = output.shape[1]
+        if cfg.model.get('neck') is not None:
+            if cfg.model.neck.get('in_channels') is not None:
+                logger.info(f"'in_channels' config in model.neck is updated from "
+                            f"{cfg.model.neck.in_channels} to {output}")
+                cfg.model.neck.in_channels = output
+                input_shape = [i for i in range(output)]
+                logger.debug(f'input shape for neck {input_shape}')
+                from mmcls.models.builder import NECKS as neck_reg
+                layer = build_from_cfg(cfg.model.neck, neck_reg)
+                output = layer(torch.rand([1] + input_shape))
+                if isinstance(output, (tuple, list)):
+                    output = output[-1]
+                output = output.shape[1]
+        if cfg.model.get('head') is not None:
+            if cfg.model.head.get('in_channels') is not None:
+                logger.info(f"'in_channels' config in model.head is updated from "
+                            f"{cfg.model.head.in_channels} to {output}")
+                cfg.model.head.in_channels = output
+
+            # checking task incremental model configurations
+
+    @staticmethod
+    def configure_task(cfg, training, model_meta=None, **kwargs):
+        """Configure for Task Adaptation Task
+        """
+        task_adapt_type = cfg['task_adapt'].get('type', None)
+        adapt_type = cfg['task_adapt'].get('op', 'REPLACE')
+
+        model_tasks, dst_classes = None, None
+        model_classes, data_classes = [], []
+        train_data_cfg = Stage.get_data_cfg(cfg, "train")
+        if isinstance(train_data_cfg, list):
+            train_data_cfg = train_data_cfg[0]
