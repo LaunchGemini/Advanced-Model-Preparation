@@ -33,4 +33,13 @@ class ClsEvaluator(ClsInferrer):
 
         # Save config
         cfg.dump(osp.join(cfg.work_dir, 'config.yaml'))
-        logger.info(f'Config
+        logger.info(f'Config:\n{cfg.pretty_text}')
+
+        # Inference
+        infer_results = super()._infer(cfg)
+
+        eval_cfg = cfg.get('evaluation', {})
+        eval_cfg.pop('by_epoch', False)
+        results = self.dataset.evaluate(infer_results, **eval_cfg)
+        logger.info(f'\n{results}')
+        return results
