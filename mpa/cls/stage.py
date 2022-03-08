@@ -209,4 +209,80 @@ class ClsStage(Stage):
                             type='IBLoss',
                             num_classes=cfg.model.head.num_classes,
                         )
-                        ib_loss_
+                        ib_loss_hook = ConfigDict(
+                            type='IBLossHook',
+                            dst_classes=dst_classes,
+                        )
+                        update_or_add_custom_hook(cfg, ib_loss_hook)
+                else:
+                    efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
+                    sampler_type = 'cls_incr'
+
+                if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
+                    sampler_flag = False
+                else:
+                    sampler_flag = True
+
+                # Update Task Adapt Hook
+                task_adapt_hook = ConfigDict(
+                    type='TaskAdaptHook',
+                    src_classes=old_classes,
+                    dst_classes=dst_classes,
+                    model_type=cfg.model.type,
+                    sampler_flag=sampler_flag,
+                    sampler_type=sampler_type,
+                    efficient_mode=efficient_mode
+                )
+                update_or_add_custom_hook(cfg, task_adapt_hook)
+
+        else:  # if not training phase (eval)
+            if train_data_cfg.get('tasks'):
+                if model_meta.get('tasks', False):
+                    cfg.model.head['tasks'] = model_meta['tasks']
+                else:
+                    raise KeyError(f'can not find task meta data from {cfg.load_from}.')
+            elif train_data_cfg.get('new_classes'):
+                dst_classes, _ = refine_cls(train_data_cfg, data_classes, model_meta, adapt_type)
+                cfg.model.head.num_classes = len(dst_classes)
+
+        # Pseudo label augmentation
+        pre_stage_res = kwargs.get('pre_stage_res', None)
+        if pre_stage_res:
+            logger.info(f'pre-stage dataset: {pre_stage_res}')
+            if train_data_cfg.type not in PSEUDO_LABEL_ENABLE_DATASET:
+                raise NotImplementedError(
+                    f'Pseudo label loading for {train_data_cfg.type} is not yet supported!')
+            train_data_cfg.pre_stage_res = pre_stage_res
+            if train_data_cfg.get('tasks'):
+                train_data_cfg.model_tasks = model_tasks
+                cfg.model.head.old_tasks = old_tasks
+            elif train_data_cfg.get('CLASSES'):
+                train_data_cfg.dst_classes = dst_classes
+                cfg.data.val.dst_classes = dst_classes
+                cfg.data.test.dst_classes = dst_classes
+                cfg.model.head.num_classes = len(train_data_cfg.dst_classes)
+                cfg.model.head.num_old_classes = len(old_classes)
+        return model_tasks, dst_classes
+
+
+def refine_tasks(train_cfg, meta, adapt_type):
+    new_tasks = train_cfg['tasks']
+    if adapt_type == 'REPLACE':
+        old_tasks = {}
+        model_tasks = new_tasks
+    elif adapt_type == 'MERGE':
+        old_tasks = meta['tasks']
+        model_tasks = copy.deepcopy(old_tasks)
+        for task, cls in new_tasks.items():
+            if model_tasks.get(task):
+                model_tasks[task] = model_tasks[task] \
+                                            + [c for c in cls if c not in model_tasks[task]]
+            else:
+                model_tasks.update({task: cls})
+    else:
+        raise KeyError(f'{adapt_type} is not supported for task_adapt options!')
+    return model_tasks, old_tasks
+
+
+def refine_cls(train_cfg, data_classes, meta, adapt_type):
+    # Get 'new_classes' in
