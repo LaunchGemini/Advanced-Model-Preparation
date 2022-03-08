@@ -146,3 +146,67 @@ class ClsStage(Stage):
         train_data_cfg = Stage.get_data_cfg(cfg, "train")
         if isinstance(train_data_cfg, list):
             train_data_cfg = train_data_cfg[0]
+
+        model_classes = Stage.get_model_classes(cfg)
+        data_classes = Stage.get_data_classes(cfg)
+        if model_classes:
+            cfg.model.head.num_classes = len(model_classes)
+        elif data_classes:
+            cfg.model.head.num_classes = len(data_classes)
+        model_meta['CLASSES'] = model_classes
+
+        if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
+            new_classes = np.setdiff1d(data_classes, model_classes).tolist()
+            train_data_cfg['new_classes'] = new_classes
+
+        if training:
+            # if Trainer to Stage configure, training = True
+            if train_data_cfg.get('tasks'):
+                # Task Adaptation
+                if model_meta.get('tasks', False):
+                    model_tasks, old_tasks = refine_tasks(train_data_cfg, model_meta, adapt_type)
+                else:
+                    raise KeyError(f'can not find task meta data from {cfg.load_from}.')
+                cfg.model.head.update({'old_tasks': old_tasks})
+                # update model.head.tasks with training dataset's tasks if it's configured as None
+                if cfg.model.head.get('tasks') is None:
+                    logger.info("'tasks' in model.head is None. updated with configuration on train data "
+                                f"{train_data_cfg.get('tasks')}")
+                    cfg.model.head.update({'tasks': train_data_cfg.get('tasks')})
+            elif 'new_classes' in train_data_cfg:
+                # Class-Incremental
+                dst_classes, old_classes = refine_cls(train_data_cfg, data_classes, model_meta, adapt_type)
+            else:
+                raise KeyError(
+                    '"new_classes" or "tasks" should be defined for incremental learning w/ current model.'
+                )
+
+            if task_adapt_type == 'mpa':
+                if train_data_cfg.type not in CLASS_INC_DATASET:  # task incremental is not supported yet
+                    raise NotImplementedError(
+                        f'Class Incremental Learning for {train_data_cfg.type} is not yet supported!')
+
+                if cfg.model.type in WEIGHT_MIX_CLASSIFIER:
+                    cfg.model.task_adapt = ConfigDict(
+                        src_classes=model_classes,
+                        dst_classes=data_classes,
+                    )
+
+                # Train dataset config update
+                train_data_cfg.classes = dst_classes
+
+                # model configuration update
+                cfg.model.head.num_classes = len(dst_classes)
+
+                if not cfg.model.get('multilabel', False) and not cfg.model.get('hierarchical', False):
+                    efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
+                    sampler_type = 'balanced'
+
+                    if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
+                        cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
+                    else:
+                        cfg.model.head.loss = ConfigDict(
+                            type='IBLoss',
+                            num_classes=cfg.model.head.num_classes,
+                        )
+                        ib_loss_
