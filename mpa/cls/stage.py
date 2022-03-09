@@ -285,4 +285,15 @@ def refine_tasks(train_cfg, meta, adapt_type):
 
 
 def refine_cls(train_cfg, data_classes, meta, adapt_type):
-    # Get 'new_classes' in
+    # Get 'new_classes' in data.train_cfg & get 'old_classes' pretreained model meta data CLASSES
+    new_classes = train_cfg['new_classes']
+    old_classes = meta['CLASSES']
+    if adapt_type == 'REPLACE':
+        # if 'REPLACE' operation, then dst_classes -> data_classes
+        dst_classes = data_classes.copy()
+    elif adapt_type == 'MERGE':
+        # if 'MERGE' operation, then dst_classes -> old_classes + new_classes (merge)
+        dst_classes = old_classes + [cls for cls in new_classes if cls not in old_classes]
+    else:
+        raise KeyError(f'{adapt_type} is not supported for task_adapt options!')
+    return dst_classes, old_classes
