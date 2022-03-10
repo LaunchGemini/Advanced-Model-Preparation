@@ -79,4 +79,75 @@ class ClsTrainer(ClsStage):
                 for idx, ds in enumerate(datasets[0]):
                     datasets[0][idx] = hpopt.createHpoDataset(ds, hp_config)
             else:
-                datasets[0] = hpopt.createHpoDa
+                datasets[0] = hpopt.createHpoDataset(datasets[0], hp_config)
+
+        # Metadata
+        meta = dict()
+        meta['env_info'] = env_info
+        # meta['config'] = cfg.pretty_text
+        meta['seed'] = cfg.seed
+
+        if isinstance(datasets[0], list):
+            repr_ds = datasets[0][0]
+        else:
+            repr_ds = datasets[0]
+
+        if cfg.checkpoint_config is not None:
+            cfg.checkpoint_config.meta = dict(
+                mmcls_version=__version__)
+            if hasattr(repr_ds, 'tasks'):
+                cfg.checkpoint_config.meta['tasks'] = repr_ds.tasks
+            else:
+                cfg.checkpoint_config.meta['CLASSES'] = repr_ds.CLASSES
+            if 'task_adapt' in cfg:
+                if hasattr(self, 'model_tasks'):  # for incremnetal learning
+                    cfg.checkpoint_config.meta.update({'tasks': self.model_tasks})
+                    # instead of update(self.old_tasks), update using "self.model_tasks"
+                else:
+                    cfg.checkpoint_config.meta.update({'CLASSES': self.model_classes})
+
+        if distributed:
+            if cfg.dist_params.get('linear_scale_lr', False):
+                new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
+                logger.info(f'enabled linear scaling rule to the learning rate. \
+                    changed LR from {cfg.optimizer.lr} to {new_lr}')
+                cfg.optimizer.lr = new_lr
+
+        # Save config
+        # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
+        # logger.info(f'Config:\n{cfg.pretty_text}')
+
+        if distributed:
+            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
+            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
+
+            mp.spawn(ClsTrainer.train_worker, nprocs=len(cfg.gpu_ids),
+                     args=(datasets, cfg, distributed, True, timestamp, meta))
+        else:
+            ClsTrainer.train_worker(None, datasets, cfg,
+                                    distributed,
+                                    True,
+                                    timestamp,
+                                    meta)
+
+        # Save outputs
+        output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
+                                    if osp.exists(osp.join(cfg.work_dir, 'best_model.pth'))
+                                    else 'latest.pth')
+        return dict(final_ckpt=output_ckpt_path)
+
+    @staticmethod
+    def train_worker(gpu, dataset, cfg, distributed, validate, timestamp, meta):
+        logger.info(f'called train_worker() gpu={gpu}, distributed={distributed}, validate={validate}')
+        if distributed:
+            torch.cuda.set_device(gpu)
+            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
+                                    world_size=len(cfg.gpu_ids), rank=gpu)
+            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
+
+        # model
+        model = build_classifier(cfg.model)
+
+        # prepare data loaders
+        dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
+        train_data_cfg = 
