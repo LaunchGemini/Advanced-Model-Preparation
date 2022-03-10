@@ -150,4 +150,81 @@ class ClsTrainer(ClsStage):
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
-        train_data_cfg = 
+        train_data_cfg = Stage.get_data_cfg(cfg, "train")
+        ote_dataset = train_data_cfg.get('ote_dataset', None)
+        drop_last = False
+        dataset_len = len(ote_dataset) if ote_dataset else 0
+        # if task == h-label & dataset size is bigger than batch size
+        if train_data_cfg.get('hierarchical_info', None) and dataset_len > cfg.data.get('samples_per_gpu', 2):
+            drop_last = True
+        # updated to adapt list of dataset for the 'train'
+        data_loaders = []
+        sub_loaders = []
+        for ds in dataset:
+            if isinstance(ds, list):
+                sub_loaders = [
+                    build_dataloader(
+                        sub_ds,
+                        sub_ds.samples_per_gpu if hasattr(sub_ds, 'samples_per_gpu') else cfg.data.samples_per_gpu,
+                        sub_ds.workers_per_gpu if hasattr(sub_ds, 'workers_per_gpu') else cfg.data.workers_per_gpu,
+                        num_gpus=len(cfg.gpu_ids),
+                        dist=distributed,
+                        round_up=True,
+                        seed=cfg.seed,
+                        drop_last=drop_last,
+                        persistent_workers=False
+                    ) for sub_ds in ds
+                ]
+                data_loaders.append(ComposedDL(sub_loaders))
+            else:
+                data_loaders.append(
+                    build_dataloader(
+                        ds,
+                        cfg.data.samples_per_gpu,
+                        cfg.data.workers_per_gpu,
+                        # cfg.gpus will be ignored if distributed
+                        num_gpus=len(cfg.gpu_ids),
+                        dist=distributed,
+                        round_up=True,
+                        seed=cfg.seed,
+                        drop_last=drop_last,
+                        persistent_workers=False
+                    ))
+
+        # put model on gpus
+        if torch.cuda.is_available():
+            model = model.cuda()
+
+        # put model on gpus
+        if torch.cuda.is_available():
+            if distributed:
+                # put model on gpus
+                find_unused_parameters = cfg.get('find_unused_parameters', False)
+                # Sets the `find_unused_parameters` parameter in
+                # torch.nn.parallel.DistributedDataParallel
+                model = MMDistributedDataParallel(
+                    model,
+                    device_ids=[torch.cuda.current_device()],
+                    broadcast_buffers=False,
+                    find_unused_parameters=find_unused_parameters)
+            else:
+                model = MMDataParallel(
+                    model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+        else:
+            model = MMDataCPU(model)
+
+        # build runner
+        optimizer = build_optimizer(model, cfg.optimizer)
+
+        if cfg.get('runner') is None:
+            cfg.runner = {
+                'type': 'EpochBasedRunner',
+                'max_epochs': cfg.total_epochs
+            }
+            warnings.warn(
+                'config is now expected to have a `runner` section, '
+                'please set `runner` in your config.', UserWarning)
+
+        runner = build_runner(
+            cfg.runner,
+            default_args=dict(
