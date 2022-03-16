@@ -228,3 +228,74 @@ class ClsTrainer(ClsStage):
         runner = build_runner(
             cfg.runner,
             default_args=dict(
+                model=model,
+                batch_processor=None,
+                optimizer=optimizer,
+                work_dir=cfg.work_dir,
+                logger=logger,
+                meta=meta))
+
+        # an ugly walkaround to make the .log and .log.json filenames the same
+        runner.timestamp = f'{timestamp}'
+
+        # fp16 setting
+        fp16_cfg = cfg.get('fp16', None)
+        if fp16_cfg is not None:
+            if cfg.optimizer_config.get('type', False)=='SAMOptimizerHook':
+                opt_hook = Fp16SAMOptimizerHook
+            else:
+                opt_hook = Fp16OptimizerHook
+            cfg.optimizer_config.pop('type')
+            optimizer_config = opt_hook(
+                **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
+        elif distributed and 'type' not in cfg.optimizer_config:
+            optimizer_config = DistOptimizerHook(**cfg.optimizer_config)
+        else:
+            optimizer_config = cfg.optimizer_config
+
+        # register hooks
+        runner.register_training_hooks(cfg.lr_config, optimizer_config,
+                                       None, cfg.log_config,
+                                       cfg.get('momentum_config', None))
+        if cfg.get('checkpoint_config', False):
+            runner.register_hook(ClsTrainer.register_checkpoint_hook(cfg.checkpoint_config))
+
+        if distributed:
+            runner.register_hook(DistSamplerSeedHook())
+
+        for hook in cfg.get('custom_hooks', ()):
+            runner.register_hook_from_cfg(hook)
+
+        # register eval hooks
+        if validate:
+            val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
+            val_dataloader = build_dataloader(
+                val_dataset,
+                samples_per_gpu=cfg.data.samples_per_gpu,
+                workers_per_gpu=cfg.data.workers_per_gpu,
+                dist=distributed,
+                shuffle=False,
+                round_up=True,
+                persistent_workers=False)
+            eval_cfg = cfg.get('evaluation', {})
+            eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
+            eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
+            runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='ABOVE_NORMAL')
+
+        if cfg.get('resume_from', False):
+            runner.resume(cfg.resume_from)
+        elif cfg.get('load_from', False):
+            if gpu is None:
+                runner.load_checkpoint(cfg.load_from)
+            else:
+                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
+        runner.run(data_loaders, cfg.workflow)
+
+    @staticmethod
+    def register_checkpoint_hook(checkpoint_config):
+        if checkpoint_config.get('type', False):
+            hook = mmcv.build_from_cfg(checkpoint_config, HOOKS)
+        else:
+            checkpoint_config.setdefault('type', 'CheckpointHook')
+            hook = mmcv.build_from_cfg(checkpoint_config, HOOKS)
+        return hook
