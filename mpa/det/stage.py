@@ -101,4 +101,76 @@ class DetectionStage(Stage):
         if training:
             if 'unlabeled' in cfg.data and cfg.data.unlabeled.get('img_file', None):
                 cfg.data.unlabeled.ann_file = cfg.data.unlabeled.pop('img_file')
-                if len(cfg.dat
+                if len(cfg.data.unlabeled.get('pipeline', [])) == 0:
+                    cfg.data.unlabeled.pipeline = cfg.data.train.pipeline.copy()
+                update_or_add_custom_hook(
+                    cfg,
+                    ConfigDict(
+                        type='UnlabeledDataHook',
+                        unlabeled_data_cfg=cfg.data.unlabeled,
+                        samples_per_gpu=cfg.data.unlabeled.pop('samples_per_gpu', cfg.data.samples_per_gpu),
+                        workers_per_gpu=cfg.data.unlabeled.pop('workers_per_gpu', cfg.data.workers_per_gpu),
+                        seed=cfg.seed
+                    )
+                )
+        for subset in ("train", "val", "test"):
+            if 'dataset' in cfg.data[subset]:
+                subset_cfg = self.get_data_cfg(cfg, subset)
+                subset_cfg.ote_dataset = cfg.data[subset].pop('ote_dataset', None)
+                subset_cfg.labels = cfg.data[subset].get('labels', None)
+                if 'data_classes' in cfg.data[subset]:
+                    subset_cfg.data_classes = cfg.data[subset].pop('data_classes')
+                if 'new_classes' in cfg.data[subset]:
+                    subset_cfg.new_classes = cfg.data[subset].pop('new_classes')
+
+    def configure_task(self, cfg, training, **kwargs):
+        """Adjust settings for task adaptation
+        """
+        logger.info(f'task config!!!!: training={training}')
+        task_adapt_type = cfg['task_adapt'].get('type', None)
+        task_adapt_op = cfg['task_adapt'].get('op', 'REPLACE')
+
+        # Task classes
+        org_model_classes, model_classes, data_classes = \
+            self.configure_task_classes(cfg, task_adapt_type, task_adapt_op)
+
+        # Data pipeline
+        if data_classes != model_classes:
+            self.configure_task_data_pipeline(cfg, model_classes, data_classes)
+
+        # Evaluation dataset
+        if cfg.get('task', 'detection') == 'detection':
+            self.configure_task_eval_dataset(cfg, model_classes)
+
+        # Training hook for task adaptation
+        self.configure_task_adapt_hook(cfg, org_model_classes, model_classes)
+
+        # Anchor setting
+        if cfg['task_adapt'].get('use_mpa_anchor', False):
+            self.configure_anchor(cfg)
+
+        # Incremental learning
+        self.configure_task_cls_incr(cfg, task_adapt_type, org_model_classes, model_classes)
+
+    def configure_task_classes(self, cfg, task_adapt_type, task_adapt_op):
+
+        # Input classes
+        org_model_classes = self.get_model_classes(cfg)
+        data_classes = self.get_data_classes(cfg)
+
+        # Model classes
+        if task_adapt_op == 'REPLACE':
+            if len(data_classes) == 0:
+                model_classes = org_model_classes.copy()
+            else:
+                model_classes = data_classes.copy()
+        elif task_adapt_op == 'MERGE':
+            model_classes = org_model_classes + [cls for cls in data_classes if cls not in org_model_classes]
+        else:
+            raise KeyError(f'{task_adapt_op} is not supported for task_adapt options!')
+
+        if task_adapt_type == 'mpa':
+            data_classes = model_classes
+        cfg.task_adapt.final = model_classes
+        cfg.model.task_adapt = ConfigDict(
+      
