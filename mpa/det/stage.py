@@ -173,4 +173,71 @@ class DetectionStage(Stage):
             data_classes = model_classes
         cfg.task_adapt.final = model_classes
         cfg.model.task_adapt = ConfigDict(
-      
+            src_classes=org_model_classes,
+            dst_classes=model_classes,
+        )
+
+        # Model architecture
+        head_names = ('mask_head', 'bbox_head', 'segm_head')
+        num_classes = len(model_classes)
+        if 'roi_head' in cfg.model:
+            # For Faster-RCNNs
+            for head_name in head_names:
+                if head_name in cfg.model.roi_head:
+                    if isinstance(cfg.model.roi_head[head_name], list):
+                        for head in cfg.model.roi_head[head_name]:
+                            head.num_classes = num_classes
+                    else:
+                        cfg.model.roi_head[head_name].num_classes = num_classes
+        else:
+            # For other architectures (including SSD)
+            for head_name in head_names:
+                if head_name in cfg.model:
+                    cfg.model[head_name].num_classes = num_classes
+
+        return org_model_classes, model_classes, data_classes
+
+    def configure_task_data_pipeline(self, cfg, model_classes, data_classes):
+        # Trying to alter class indices of training data according to model class order
+        tr_data_cfg = self.get_data_cfg(cfg, "train")
+        class_adapt_cfg = dict(type='AdaptClassLabels', src_classes=data_classes, dst_classes=model_classes)
+        pipeline_cfg = tr_data_cfg.pipeline
+        for i, op in enumerate(pipeline_cfg):
+            if op['type'] == 'LoadAnnotations':  # insert just after this op
+                op_next_ann = pipeline_cfg[i + 1] if i + 1 < len(pipeline_cfg) else {}
+                if op_next_ann.get('type', '') == class_adapt_cfg['type']:
+                    op_next_ann.update(class_adapt_cfg)
+                else:
+                    pipeline_cfg.insert(i + 1, class_adapt_cfg)
+                break
+
+    def configure_task_eval_dataset(self, cfg, model_classes):
+        # - Altering model outputs according to dataset class order
+        eval_types = ['val', 'test']
+        for eval_type in eval_types:
+            if cfg.data[eval_type]['type'] == 'TaskAdaptEvalDataset':
+                cfg.data[eval_type]['model_classes'] = model_classes
+            else:
+                # Wrap original dataset config
+                org_type = cfg.data[eval_type]['type']
+                cfg.data[eval_type]['type'] = 'TaskAdaptEvalDataset'
+                cfg.data[eval_type]['org_type'] = org_type
+                cfg.data[eval_type]['model_classes'] = model_classes
+
+    def configure_task_adapt_hook(self, cfg, org_model_classes, model_classes):
+        task_adapt_hook = ConfigDict(
+            type='TaskAdaptHook',
+            src_classes=org_model_classes,
+            dst_classes=model_classes,
+            model_type=cfg.model.type,
+        )
+        update_or_add_custom_hook(cfg, task_adapt_hook)
+
+    def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
+        if cfg.get('task', 'detection') == 'detection':
+            bbox_head = cfg.model.bbox_head
+        else:
+            bbox_head = cfg.model.roi_head.bbox_head
+        if task_adapt_type == 'mpa':
+            tr_data_cfg = self.get_data_cfg(cfg, "train")
+            if tr_data_cfg.type != 'MPADetDatase
