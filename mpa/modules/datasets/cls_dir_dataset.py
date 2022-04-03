@@ -75,4 +75,86 @@ class ClsDirDataset(BaseDataset):
             new_data_length = len(self.img_indices['new'])
             logger.info(f'- # of old classes images: {old_data_length}')
             logger.info(f'- # of New classes images: {new_data_length}')
-        logger.info(f'- # of imag
+        logger.info(f'- # of images: {len(self)}')
+
+    def _read_dir(self):
+        img_path, img_class, img_prefix = [], [], []
+        if self.use_labels:
+            cls_dir_list = os.listdir(self.data_dir)
+            for cls_name in cls_dir_list:
+                if cls_name not in self.CLASSES:
+                    continue
+                cls_dir = os.path.join(self.data_dir, cls_name)
+                if not os.path.isdir(cls_dir):
+                    continue
+
+                cls_img_path = os.listdir(cls_dir)
+                img_path += cls_img_path
+                img_prefix += [cls_dir] * len(cls_img_path)
+                img_class += [cls_name] * len(cls_img_path)
+        else:
+            path_list = os.listdir(self.data_dir)
+            for p in path_list:
+                current_path = os.path.join(self.data_dir, p)
+                if os.path.isdir(current_path):
+                    cls_img_path = os.listdir(current_path)
+                    img_path += cls_img_path
+                    img_prefix += [current_path] * len(cls_img_path)
+                    img_class += [self.CLASSES[0]] * len(cls_img_path)
+                else:
+                    img_path += [p]
+                    img_prefix += [self.data_dir]
+                    img_class += [self.CLASSES[0]]
+
+        return img_path, img_class, img_prefix
+
+    def load_annotations(self):
+        img_path_list, img_class_list, img_prefix_list = self._read_dir()
+        data_infos = []
+        for i, (img_path, img_cls, img_prefix) in enumerate(zip(img_path_list, img_class_list, img_prefix_list)):
+            if self.use_labels:
+                gt_label = np.array(self.class_to_idx[img_cls])
+            else:
+                gt_label = np.array([-1])
+            info = {'img_prefix': img_prefix, 'img_info': {'filename': img_path}, 'gt_label': gt_label}
+            data_infos.append(info)
+            if img_cls in self.new_classes:
+                self.img_indices['new'].append(i)
+            else:
+                self.img_indices['old'].append(i)
+        return data_infos
+
+    def get_classes_from_dir(self, root):
+        if not self.use_labels:
+            return [os.path.basename(root)]
+        # classes = self.get_classes(classes)
+        # print(classes)
+        # if classes is None:
+        classes = []
+        path_list = os.listdir(root)
+        for p in path_list:
+            if os.path.isdir(os.path.join(root, p)):
+                if p not in classes:
+                    classes.append(p)
+            else:
+                raise ValueError("This folder structure is not suitable for label data")
+        return classes
+
+    def __len__(self):
+        return len(self.data_infos)
+
+    def __getitem__(self, idx):
+        if self.pipeline is None:
+            return self.data_infos[idx]
+
+        data_infos = [
+            copy.deepcopy(self.data_infos[idx]) for _ in range(self.num_pipes)
+        ]
+        if isinstance(self.pipeline, dict):
+            results = {}
+            for i, (k, v) in enumerate(self.pipeline.items()):
+                results[k] = self.pipeline[k](data_infos[i])
+        else:
+            results = self.pipeline(data_infos[0])
+
+        ret
