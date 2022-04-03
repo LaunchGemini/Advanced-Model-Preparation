@@ -313,4 +313,79 @@ class DetectionStage(Stage):
             src_data_cfg = Stage.get_data_cfg(cfg, "train")
             src_data_cfg.pop('old_new_indices', None)
 
-    def c
+    def configure_regularization(self, cfg):
+        if cfg.model.get('l2sp_weight', 0.0) > 0.0:
+            logger.info('regularization config!!!!')
+
+            # Checkpoint
+            l2sp_ckpt = cfg.model.get('l2sp_ckpt', None)
+            if l2sp_ckpt is None:
+                if 'pretrained' in cfg.model:
+                    l2sp_ckpt = cfg.model.pretrained
+                if cfg.load_from:
+                    l2sp_ckpt = cfg.load_from
+            cfg.model.l2sp_ckpt = l2sp_ckpt
+
+            # Disable weight decay
+            if 'weight_decay' in cfg.optimizer:
+                cfg.optimizer.weight_decay = 0.0
+
+    @staticmethod
+    def get_img_ids_for_incr(cfg, org_model_classes, model_classes):
+        # get image ids of old classes & new class
+        # to setup experimental dataset (COCO format)
+        new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
+        old_classes = np.intersect1d(org_model_classes, model_classes).tolist()
+
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
+
+        ids_old, ids_new = [], []
+        data_cfg = cfg.data.test.copy()
+        data_cfg.test_mode = src_data_cfg.get('test_mode', False)
+        data_cfg.ann_file = src_data_cfg.get('ann_file', None)
+        data_cfg.img_prefix = src_data_cfg.get('img_prefix', None)
+        old_data_cfg = data_cfg.copy()
+        if 'classes' in old_data_cfg:
+            old_data_cfg.classes = old_classes
+        old_dataset = build_dataset(old_data_cfg)
+        ids_old = old_dataset.dataset.img_ids
+        if len(new_classes) > 0:
+            data_cfg.classes = new_classes
+            dataset = build_dataset(data_cfg)
+            ids_new = dataset.dataset.img_ids
+            ids_old = np.setdiff1d(ids_old, ids_new).tolist()
+
+        sampled_ids = ids_old + ids_new
+        outputs = dict(
+            old_classes=old_classes,
+            new_classes=new_classes,
+            img_ids=sampled_ids,
+            img_ids_old=ids_old,
+            img_ids_new=ids_new,
+        )
+        return outputs
+
+    @staticmethod
+    def add_yolox_hooks(cfg):
+        update_or_add_custom_hook(
+            cfg,
+            ConfigDict(
+                type='YOLOXModeSwitchHook',
+                num_last_epochs=15,
+                priority=48))
+        update_or_add_custom_hook(
+            cfg,
+            ConfigDict(
+                type='SyncRandomSizeHook',
+                ratio_range=(10, 20),
+                img_scale=(640, 640),
+                interval=1,
+                priority=48,
+                device='cuda' if torch.cuda.is_available() else 'cpu'))
+        update_or_add_custom_hook(
+            cfg,
+            ConfigDict(
+                type='SyncNormHook',
+                num_last_epochs=15,
+                interval=1,
+                priority=48))
