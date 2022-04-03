@@ -240,4 +240,77 @@ class DetectionStage(Stage):
             bbox_head = cfg.model.roi_head.bbox_head
         if task_adapt_type == 'mpa':
             tr_data_cfg = self.get_data_cfg(cfg, "train")
-            if tr_data_cfg.type != 'MPADetDatase
+            if tr_data_cfg.type != 'MPADetDataset':
+                tr_data_cfg.img_ids_dict = self.get_img_ids_for_incr(cfg, org_model_classes, model_classes)
+                tr_data_cfg.org_type = tr_data_cfg.type
+                tr_data_cfg.type = 'DetIncrCocoDataset'
+            alpha, gamma = 0.25, 2.0
+            if bbox_head.type in ['SSDHead', 'CustomSSDHead']:
+                gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
+                bbox_head.type = 'CustomSSDHead'
+                bbox_head.loss_cls = ConfigDict(
+                    type='FocalLoss',
+                    loss_weight=1.0,
+                    gamma=gamma,
+                    reduction='none',
+                )
+            elif bbox_head.type in ['ATSSHead']:
+                gamma = 3 if cfg['task_adapt'].get('efficient_mode', False) else 4.5
+                bbox_head.loss_cls.gamma = gamma
+            elif bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
+                alpha = 0.75
+                gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
+            elif bbox_head.type in ['YOLOXHead', 'CustomYOLOXHead']:
+                if cfg.data.train.type == 'MultiImageMixDataset':
+                    cfg.data.train.pop('ann_file', None)
+                    cfg.data.train.pop('img_prefix', None)
+                    cfg.data.train['labels'] = cfg.data.train.pop('labels', None)
+                    self.add_yolox_hooks(cfg)
+            # Ignore Mode
+            if cfg.get('ignore', False):
+                bbox_head.loss_cls = ConfigDict(
+                        type='CrossSigmoidFocalLoss',
+                        use_sigmoid=True,
+                        num_classes=len(model_classes),
+                        alpha=alpha,
+                        gamma=gamma
+                )
+
+            sampler_flag = True
+            if len(set(org_model_classes) & set(model_classes)) == 0 or set(org_model_classes) == set(model_classes):
+                sampler_flag = False
+
+            update_or_add_custom_hook(
+                cfg,
+                ConfigDict(
+                    type='TaskAdaptHook',
+                    sampler_flag=sampler_flag,
+                    efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
+                )
+            )
+
+            adaptive_ema = cfg.get('adaptive_ema', {})
+            if adaptive_ema:
+                update_or_add_custom_hook(
+                    cfg,
+                    ConfigDict(
+                        type='CustomModelEMAHook',
+                        priority='ABOVE_NORMAL',
+                        resume_from=cfg.get("resume_from"),
+                        **adaptive_ema
+                    )
+                )
+            else:
+                update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority='ABOVE_NORMAL', resume_from=cfg.get("resume_from"), momentum=0.1))
+
+            adaptive_validation_interval = cfg.get('adaptive_validation_interval', {})
+            if adaptive_validation_interval:
+                update_or_add_custom_hook(
+                    cfg,
+                    ConfigDict(type='AdaptiveTrainSchedulingHook', **adaptive_validation_interval)
+                )
+        else:
+            src_data_cfg = Stage.get_data_cfg(cfg, "train")
+            src_data_cfg.pop('old_new_indices', None)
+
+    def c
