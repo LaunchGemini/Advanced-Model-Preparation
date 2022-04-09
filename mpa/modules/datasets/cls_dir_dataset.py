@@ -157,4 +157,66 @@ class ClsDirDataset(BaseDataset):
         else:
             results = self.pipeline(data_infos[0])
 
-        ret
+        return results
+
+    def evaluate(self,
+                 results,
+                 metric='accuracy',
+                 metric_options=None,
+                 logger=None):
+        """Evaluate the dataset with new metric 'class_accuracy'
+
+        Args:
+            results (list): Testing results of the dataset.
+            metric (str | list[str]): Metrics to be evaluated.
+                Default value is `accuracy`.
+                'accuracy', 'precision', 'recall', 'f1_score', 'support', 'class_accuracy'
+            metric_options (dict, optional): Options for calculating metrics.
+                Allowed keys are 'topk', 'thrs' and 'average_mode'.
+                Defaults to None.
+            logger (logging.Logger | str, optional): Logger used for printing
+                related information during evaluation. Defaults to None.
+        Returns:
+            dict: evaluation results
+        """
+        if metric_options is None:
+            metric_options = {'topk': (1, 5) if self.num_classes >= 5 else (1, )}
+
+        if isinstance(metric, str):
+            metrics = [metric]
+        else:
+            metrics = metric
+
+        if 'class_accuracy' in metrics:
+            metrics.remove('class_accuracy')
+            self.class_acc = True
+
+        eval_results = super().evaluate(results, metrics, metric_options, logger)
+
+        # Add Evaluation Accuracy score per Class
+        if self.class_acc:
+            results = np.vstack(results)
+            gt_labels = self.get_gt_labels()
+            accuracies = self.class_accuracy(results, gt_labels)
+            eval_results.update({f'{c} accuracy': a for c, a in zip(self.CLASSES, accuracies)})
+            eval_results.update({'mean accuracy': np.mean(accuracies)})
+
+        return eval_results
+
+    def class_accuracy(self, results, gt_labels):
+        accracies = []
+        pred_label = results.argsort(axis=1)[:, -1:][:, ::-1]
+        for i in range(self.num_classes):
+            cls_pred = pred_label == i
+            cls_pred = cls_pred[gt_labels == i]
+            cls_acc = np.sum(cls_pred) / len(cls_pred)
+            accracies.append(cls_acc)
+        return accracies
+
+    @property
+    def samples_per_gpu(self):
+        return self._samples_per_gpu
+
+    @property
+    def workers_per_gpu(self):
+        return self._workers_per_gpu
