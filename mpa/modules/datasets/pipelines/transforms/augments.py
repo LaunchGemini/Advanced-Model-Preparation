@@ -118,4 +118,66 @@ class CythonAugments(Augments):
 
     def color(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
         if Image.isImageType(img):
-            return pil_aug.c
+            return pil_aug.color(img, factor)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def contrast(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.contrast(img, factor)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def brightness(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.brightness(img, factor)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def sharpness(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.sharpness(img, factor)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def rotate(img: ImgTypes, degree: float, *args, **kwargs) -> ImgTypes:
+        Augments._check_args_tf(kwargs)
+
+        if Image.isImageType(img):
+            return pil_aug.rotate(img, degree)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def shear_x(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
+        Augments._check_args_tf(kwargs)
+
+        if Image.isImageType(img):
+            return pil_aug.shear_x(img, factor)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def shear_y(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.shear_y(img, factor)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def translate_x_rel(img: ImgTypes, pct: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.translate_x_rel(img, pct)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def translate_y_rel(img: ImgTypes, pct: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.translate_y_rel(img, pct)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def blend(src: ImgTypes, dst: CvImage, weight: float):
+        assert isinstance(dst, CvImage), f"Type of dst should be numpy array, but type(dst)={type(dst)}."
+
+        if Image.isImageType(src):
+            return pil_aug.blend(src, dst, weight)
+
+        raise NotImplementedError(f"Unknown type: {type(src)}")
