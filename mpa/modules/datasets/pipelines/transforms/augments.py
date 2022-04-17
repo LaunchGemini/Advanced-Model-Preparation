@@ -30,4 +30,92 @@ class Augments:
         return ImageOps.autocontrast(img)
 
     @staticmethod
-    def equalize(img: PILImage, *args, **kwargs) -> PILIma
+    def equalize(img: PILImage, *args, **kwargs) -> PILImage:
+        return ImageOps.equalize(img)
+
+    @staticmethod
+    def solarize(img: PILImage, threshold: int, *args, **kwargs) -> PILImage:
+        return ImageOps.solarize(img, threshold)
+
+    @staticmethod
+    def posterize(img: PILImage, bits_to_keep: int, *args, **kwargs) -> PILImage:
+        if bits_to_keep >= 8:
+            return img
+
+        return ImageOps.posterize(img, bits_to_keep)
+
+    @staticmethod
+    def color(img: PILImage, factor: float, *args, **kwargs) -> PILImage:
+        return ImageEnhance.Color(img).enhance(factor)
+
+    @staticmethod
+    def contrast(img: PILImage, factor: float, *args, **kwargs) -> PILImage:
+        return ImageEnhance.Contrast(img).enhance(factor)
+
+    @staticmethod
+    def brightness(img: PILImage, factor: float, *args, **kwargs) -> PILImage:
+        return ImageEnhance.Brightness(img).enhance(factor)
+
+    @staticmethod
+    def sharpness(img: PILImage, factor: float, *args, **kwargs) -> PILImage:
+        return ImageEnhance.Sharpness(img).enhance(factor)
+
+    @staticmethod
+    def rotate(img: PILImage, degree: float, *args, **kwargs) -> PILImage:
+        Augments._check_args_tf(kwargs)
+        return img.rotate(degree, **kwargs)
+
+    @staticmethod
+    def shear_x(img: PILImage, factor: float, *args, **kwargs) -> PILImage:
+        Augments._check_args_tf(kwargs)
+        return img.transform(img.size, Image.AFFINE, (1, factor, 0, 0, 1, 0), **kwargs)
+
+    @staticmethod
+    def shear_y(img: PILImage, factor: float, *args, **kwargs) -> PILImage:
+        Augments._check_args_tf(kwargs)
+        return img.transform(img.size, Image.AFFINE, (1, 0, 0, factor, 1, 0), **kwargs)
+
+    @staticmethod
+    def translate_x_rel(img: PILImage, pct: float, *args, **kwargs) -> PILImage:
+        Augments._check_args_tf(kwargs)
+        pixels = pct * img.size[0]
+        return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs)
+
+    @staticmethod
+    def translate_y_rel(img: PILImage, pct: float, *args, **kwargs) -> PILImage:
+        Augments._check_args_tf(kwargs)
+        pixels = pct * img.size[1]
+        return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs)
+
+
+class CythonAugments(Augments):
+    def autocontrast(img: ImgTypes, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.autocontrast(img)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def equalize(img: ImgTypes, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.equalize(img)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def solarize(img: ImgTypes, threshold: int, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.solarize(img, threshold)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def posterize(img: ImgTypes, bits_to_keep: int, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            if bits_to_keep >= 8:
+                return img
+
+            return pil_aug.posterize(img, bits_to_keep)
+
+        raise NotImplementedError(f"Unknown type: {type(img)}")
+
+    def color(img: ImgTypes, factor: float, *args, **kwargs) -> ImgTypes:
+        if Image.isImageType(img):
+            return pil_aug.c
