@@ -52,4 +52,46 @@ class MultiClsDataset(CSVDatasetCls):
                 for task, gt in zip(self.tasks.keys(), gt_labels):
                     res = results[task]
                     num_imgs = len(res)
-                  
+                    assert len(gt) == num_imgs
+                    if metric == 'accuracy':
+                        topk = metric_options.get('topk')
+                        acc = accuracy(res, gt, topk)
+                        eval_result = {
+                            f'{task} top-{k}': a.item() for k, a in zip(topk, acc)
+                        }
+                    elif metric == 'precision':
+                        precision_value = precision(res, gt)
+                        eval_result = {f'{task} precision': precision_value}
+                    elif metric == 'recall':
+                        recall_value = recall(res, gt)
+                        eval_result = {f'{task} recall': recall_value}
+                    elif metric == 'f1_score':
+                        f1_score_value = f1_score(res, gt)
+                        eval_result = {f'{task} f1_score': f1_score_value}
+                    elif metric == 'class_accuracy':
+                        classes = self.tasks[task]
+                        acc = self.class_accuracy(res, gt, classes)
+                        eval_result = {
+                            f'{task} - {c}': a for c, a in zip(classes, acc)
+                        }
+                    eval_results.update(eval_result)
+        return eval_results
+
+    def class_accuracy(self, res, gt, classes):
+        num_cls = len(classes)
+        accracies = []
+        pred_label = res.argsort(axis=1)[:, -1:][:, ::-1]
+        for i in range(num_cls):
+            cls_pred = pred_label == i
+            cls_pred = cls_pred[gt == i]
+            cls_acc = np.sum(cls_pred)/len(cls_pred)
+            accracies.append(cls_acc)
+        return accracies
+
+    def _refine_results(self, results):
+        tasks = results[0].keys()
+        res_refine = {}
+        for task in tasks:
+            res_refine[task] = np.concatenate([res[task] for res in results])
+
+        return res_refine
