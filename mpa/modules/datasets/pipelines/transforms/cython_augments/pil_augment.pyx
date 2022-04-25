@@ -274,4 +274,87 @@ def solarize(image: Image, threshold: int = 128):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def color(im
+def color(image: Image, factor: float):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    cdef ImageInfo info
+    cdef int x, y
+    cdef float grey_val, c_factor
+
+    info = parse_img_info(image)
+    c_factor = factor
+
+    for y in range(info.height):
+        for x in range(info.width):
+            grey_val = <float>(L24(info.img_ptr[y][x]) >> 16)
+            if 0.0 <= c_factor and c_factor <= 1.0:
+                info.img_ptr[y][x].r = <unsigned char>(info.img_ptr[y][x].r * c_factor + grey_val * (1 - c_factor))
+                info.img_ptr[y][x].g = <unsigned char>(info.img_ptr[y][x].g * c_factor + grey_val * (1 - c_factor))
+                info.img_ptr[y][x].b = <unsigned char>(info.img_ptr[y][x].b * c_factor + grey_val * (1 - c_factor))
+            else:
+                info.img_ptr[y][x].r = clip(info.img_ptr[y][x].r * c_factor + grey_val * (1 - c_factor))
+                info.img_ptr[y][x].g = clip(info.img_ptr[y][x].g * c_factor + grey_val * (1 - c_factor))
+                info.img_ptr[y][x].b = clip(info.img_ptr[y][x].b * c_factor + grey_val * (1 - c_factor))
+
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def contrast(image: Image, factor: float):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    cdef ImageInfo info
+    cdef int i_sum, x, y
+    cdef float c_factor, f_mean
+
+    info = parse_img_info(image)
+    c_factor = factor
+
+    f_mean = 0
+    i_sum = 0
+    for y in range(info.height):
+        for x in range(info.width):
+            i_sum += L24(info.img_ptr[y][x]) >> 16
+    f_mean = i_sum / (info.height * info.width)
+
+    for y in range(info.height):
+        for x in range(info.width):
+            if 0.0 <= c_factor and c_factor <= 1.0:
+                info.img_ptr[y][x].r = <unsigned char>(info.img_ptr[y][x].r * c_factor + f_mean * (1 - c_factor))
+                info.img_ptr[y][x].g = <unsigned char>(info.img_ptr[y][x].g * c_factor + f_mean * (1 - c_factor))
+                info.img_ptr[y][x].b = <unsigned char>(info.img_ptr[y][x].b * c_factor + f_mean * (1 - c_factor))
+            else:
+                info.img_ptr[y][x].r = clip(info.img_ptr[y][x].r * c_factor + f_mean * (1 - c_factor))
+                info.img_ptr[y][x].g = clip(info.img_ptr[y][x].g * c_factor + f_mean * (1 - c_factor))
+                info.img_ptr[y][x].b = clip(info.img_ptr[y][x].b * c_factor + f_mean * (1 - c_factor))
+
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def brightness(image: Image, factor: float):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    cdef ImageInfo info
+    cdef int x, y
+    cdef float c_factor
+
+    info = parse_img_info(image)
+    c_factor = factor
+
+    for y in range(info.height):
+        for x in range(info.width):
+            if 0.0 <= c_factor and c_factor <= 1.0:
+                info.img_ptr[y][x].r = <unsigned char>(info.img_ptr[y][x].r * c_factor)
+                info.img_ptr[y][x].g = <unsigned char>(info.img_ptr[y][x].g * c_factor)
+                info.img_ptr[y][x].b = <unsigned char>(info.img_ptr[y][x].b * c_factor)
+            else:
+                info.img_ptr[y][x].r = clip(info.img_ptr[y][x].r * c_factor)
+                info.img_ptr
