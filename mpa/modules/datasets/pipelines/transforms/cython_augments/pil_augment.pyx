@@ -145,4 +145,133 @@ def autocontrast(image: Image, cutoff=0, ignore=None):
             # remove cutoff% samples from the high end
             cut = n * cutoff[1] // 100
             for hi in range(255, -1, -1):
-       
+                if cut > h[hi]:
+                    cut = cut - h[hi]
+                    h[hi] = 0
+                else:
+                    h[hi] -= cut
+                    cut = 0
+                if cut <= 0:
+                    break
+        # find lowest/highest samples after preprocessing
+        for lo in range(256):
+            if h[lo]:
+                break
+        for hi in range(255, -1, -1):
+            if h[hi]:
+                break
+        if hi <= lo:
+            # don't bother
+            for i in range(256):
+                lut[layer + i] = i
+        else:
+            scale = 255.0 / (hi - lo)
+            offset = -lo * scale
+            for ix in range(256):
+                i = ix
+                ix = (int)(ix * scale + offset)
+                if ix < 0:
+                    ix = 0
+                elif ix > 255:
+                    ix = 255
+                lut[layer + i] = ix
+
+        layer += 256
+
+    _c_lut(image, lut)
+
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def equalize(image: Image):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+    cdef int[:] h
+    cdef int[:] lut = cvarray(shape=(768,), itemsize=sizeof(int), format="i")
+
+    h = c_histogram(image)
+
+    cdef int b, histo_len, histo_sum, i, n, step, num
+    cdef int histo[256]
+
+    for b in range(0, 768, 256):
+        histo_len = 0
+        histo_sum = 0
+
+        for i in range(256):
+            num = h[b + i]
+            if num > 0:
+                histo[histo_len] = num
+                histo_sum += num
+                histo_len += 1
+
+        if histo_len <= 1:
+            for i in range(256):
+                lut[b + i] = i
+        else:
+            step = (histo_sum - histo[histo_len - 1]) // 255
+            if not step:
+                for i in range(256):
+                    lut[b + i] = i
+            else:
+                n = step // 2
+                for i in range(256):
+                    lut[b + i] = n // step
+                    n = n + h[i + b]
+
+    _c_lut(image, lut)
+
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def posterize(image: Image, bits: int):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    cdef int[:] lut = cvarray(shape=(768,), itemsize=sizeof(int), format="i")
+    cdef int i, b, c_bits
+    cdef unsigned char mask
+
+    c_bits = bits
+
+    mask = ~(2 ** (8 - c_bits) - 1)
+    for b in range(0, 768, 256):
+        for i in range(256):
+            lut[b + i] = i & mask
+    _c_lut(image, lut)
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def solarize(image: Image, threshold: int = 128):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    cdef int[:] lut = cvarray(shape=(768,), itemsize=sizeof(int), format="i")
+    cdef int i, b, c_threshold
+    cdef ImageInfo info
+
+    c_threshold = threshold
+
+    for b in range(0, 768, 256):
+        for i in range(256):
+            if i < c_threshold:
+                lut[b + i] = i
+            else:
+                lut[b + i] = 255 - i
+
+    _c_lut(image, lut)
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def color(im
