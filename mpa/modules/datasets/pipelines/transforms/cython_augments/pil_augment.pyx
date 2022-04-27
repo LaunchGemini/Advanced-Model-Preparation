@@ -357,4 +357,101 @@ def brightness(image: Image, factor: float):
                 info.img_ptr[y][x].b = <unsigned char>(info.img_ptr[y][x].b * c_factor)
             else:
                 info.img_ptr[y][x].r = clip(info.img_ptr[y][x].r * c_factor)
-                info.img_ptr
+                info.img_ptr[y][x].g = clip(info.img_ptr[y][x].g * c_factor)
+                info.img_ptr[y][x].b = clip(info.img_ptr[y][x].b * c_factor)
+
+    return image
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def sharpness(image: Image, factor: float):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    cdef ImageInfo info
+    cdef int x, y, i, j
+    cdef float c_factor
+    cdef float smooth_kernel[3][3]
+    smooth_kernel[0][:] = [1 / 13., 1 / 13., 1 / 13.]
+    smooth_kernel[1][:] = [1 / 13., 5 / 13., 1 / 13.]
+    smooth_kernel[2][:] = [1 / 13., 1 / 13., 1 / 13.]
+    cdef float r, g, b, div
+
+    info = parse_img_info(image)
+    c_factor = factor
+
+    for i in range(3):
+        for j in range(3):
+            smooth_kernel[i][j] = smooth_kernel[i][j] * (1 - c_factor)
+
+    smooth_kernel[1][1] += c_factor
+
+    for y in range(1, info.height - 1):
+        for x in range(1, info.width - 1):
+            r = g = b = div = 0
+
+            for i in range(3):
+                for j in range(3):
+                    r += smooth_kernel[i][j] * info.img_ptr[y + i - 1][x + j - 1].r
+                    g += smooth_kernel[i][j] * info.img_ptr[y + i - 1][x + j - 1].g
+                    b += smooth_kernel[i][j] * info.img_ptr[y + i - 1][x + j - 1].b
+
+            info.img_ptr[y][x].r = clip(r)
+            info.img_ptr[y][x].g = clip(g)
+            info.img_ptr[y][x].b = clip(b)
+
+    return image
+
+
+def _convert_flag_pil_to_cv(flag: Resampling) -> int:
+    flag_map = {
+        Resampling.NEAREST: cv2.INTER_NEAREST,
+        Resampling.BOX: cv2.INTER_NEAREST,
+        Resampling.BILINEAR: cv2.INTER_LINEAR,
+        Resampling.HAMMING: cv2.INTER_LINEAR,
+        Resampling.BICUBIC: cv2.INTER_CUBIC,
+        Resampling.LANCZOS: cv2.INTER_LANCZOS4
+    }
+
+    if flag in flag_map:
+        return flag_map[flag]
+    return cv2.INTER_LINEAR
+
+
+def rotate(image: Image, angle: float, resample: Resampling = Resampling.BILINEAR):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    image = np.asarray(image)
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    flags = _convert_flag_pil_to_cv(resample)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=flags)
+    result = Image.fromarray(result)
+    return result
+
+
+def translate_x_rel(image: Image, pct: float, resample: Resampling = Resampling.BILINEAR):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    pixels = pct * image.width
+    image = np.asarray(image)
+    aff_mat = np.asarray((1, 0, -pixels, 0, 1, 1)).reshape([2, 3])
+    flags = _convert_flag_pil_to_cv(resample)
+    result = cv2.warpAffine(image, aff_mat, image.shape[1::-1], flags=flags)
+    return Image.fromarray(result)
+
+
+def translate_y_rel(image: Image, pct: float, resample: Resampling = Resampling.BILINEAR):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    pixels = pct * image.height
+    image = np.asarray(image)
+    aff_mat = np.asarray((1, 0, 0, 0, 1, -pixels)).reshape([2, 3])
+    flags = _convert_flag_pil_to_cv(resample)
+    result = cv2.warpAffine(image, aff_mat, image.shape[1::-1], flags=flags)
+    ret
