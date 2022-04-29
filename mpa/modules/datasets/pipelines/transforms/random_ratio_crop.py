@@ -79,4 +79,47 @@ class RandomRatioCrop(object):
 
             # pad the height if needed
             # if self.pad_if_needed and img.shape[0] < self.size[0]:
-                # img
+                # img = mmcv.impad(
+                #     img,
+                #     padding=(0, self.size[0] - img.shape[0], 0,
+                #              self.size[0] - img.shape[0]),
+                #     pad_val=self.pad_val,
+                #     padding_mode=self.padding_mode)
+            if self.pad_if_needed and self.ratio[0] > 1.0:
+                img = mmcv.impad(
+                    img,
+                    padding=(0, int(self.ratio[0] * img.shape[0]), 0,
+                             int(self.ratio[0] - img.shape[0])),
+                    pad_val=self.pad_val,
+                    padding_mode=self.padding_mode)
+
+            # pad the width if needed
+            # if self.pad_if_needed and img.shape[1] < self.size[1]:
+            #     img = mmcv.impad(
+            #         img,
+            #         padding=(self.size[1] - img.shape[1], 0,
+            #                  self.size[1] - img.shape[1], 0),
+            #         pad_val=self.pad_val,
+            #         padding_mode=self.padding_mode)
+            if self.pad_if_needed and self.ratio[1] > 1.0:
+                img = mmcv.impad(
+                    img,
+                    padding=(int(self.ratio[1] * img.shape[1]), 0,
+                             int(self.ratio[1] * img.shape[1]), 0),
+                    pad_val=self.pad_val,
+                    padding_mode=self.padding_mode)
+
+            xmin, ymin, height, width = self.get_params(img, self.ratio)
+            results[key] = mmcv.imcrop(
+                img,
+                np.array([
+                    xmin,
+                    ymin,
+                    xmin + width - 1,
+                    ymin + height - 1,
+                ]))
+        return results
+
+    def __repr__(self):
+        return (self.__class__.__name__ +
+                f'(ratio={self.ratio}, padding={self.padding})')
