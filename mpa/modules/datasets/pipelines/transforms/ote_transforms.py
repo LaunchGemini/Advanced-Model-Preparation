@@ -61,4 +61,10 @@ class RandomRotate(object):
             else:
                 rnd_angle = random.randint(self.angle[0], self.angle[1])
             if not Image.isImageType(img):
-           
+                img = Image.fromarray(img)
+
+            img = F.rotate(img, rnd_angle, expand=False, center=None)
+            results["RandomRotate"] = True
+            results[key] = img
+
+        return results
