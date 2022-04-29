@@ -454,4 +454,42 @@ def translate_y_rel(image: Image, pct: float, resample: Resampling = Resampling.
     aff_mat = np.asarray((1, 0, 0, 0, 1, -pixels)).reshape([2, 3])
     flags = _convert_flag_pil_to_cv(resample)
     result = cv2.warpAffine(image, aff_mat, image.shape[1::-1], flags=flags)
-    ret
+    return Image.fromarray(result)
+
+
+def shear_x(image: Image, factor: float, resample: Resampling = Resampling.BILINEAR):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    image = np.asarray(image)
+    aff_mat = np.asarray((1, -factor, 0, 0, 1, 0)).reshape([2, 3])
+    flags = _convert_flag_pil_to_cv(resample)
+    result = cv2.warpAffine(image, aff_mat, image.shape[1::-1], flags=flags)
+    return Image.fromarray(result)
+
+
+def shear_y(image: Image, factor: float, resample: Resampling = Resampling.BILINEAR):
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    image = np.asarray(image)
+    aff_mat = np.asarray((1, 0, 0, -factor, 1, 0)).reshape([2, 3])
+    flags = _convert_flag_pil_to_cv(resample)
+    result = cv2.warpAffine(image, aff_mat, image.shape[1::-1], flags=flags)
+    return Image.fromarray(result)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def blend(img_to_mix: Image, np.ndarray[np.float32_t, ndim=3] img_dst, weight: float) -> None:
+    if img_to_mix.mode != "RGB":
+        img_to_mix = img_to_mix.convert("RGB")
+
+    cdef ImageInfo info = parse_img_info(img_to_mix)
+    cdef float c_weight = weight
+
+    for y in range(info.height):
+        for x in range(info.width):
+            img_dst[y, x, 0] += c_weight * info.img_ptr[y][x].r
+            img_dst[y, x, 1] += c_weight * info.img_ptr[y][x].g
+            img_dst[y, x, 2] += c_weight * info.img_ptr[y][x].b
