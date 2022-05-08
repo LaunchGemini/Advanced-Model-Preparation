@@ -63,4 +63,5 @@ class ClsIncrSampler(Sampler):
         indices = indices.astype(np.int64).tolist()
         return iter(indices)
 
-    
+    def __len__(self):
+        return self.data_length * self.repeat
