@@ -46,4 +46,20 @@ class PseudoBalancedDataset(ClassBalancedDataset):
             self.pseudo_length = int(10*math.sqrt(float(self.balanced_length)))
         else:
             # Manual length setting
-            self.ps
+            self.pseudo_length = pseudo_length
+        logger.info('PseudoBalancedDataset ----------------------')
+        logger.info(f'--> org_length: {self.org_length}')
+        logger.info(f'--> balanced_length: {self.balanced_length}')
+        logger.info(f'--> pseudo_length: {self.pseudo_length}')
+
+        # Aspect ratio group
+        # TODO: not sure yet how to deal w/ static aspect ratio flag
+        # There might be some inefficiency due to mixed aspect ratio
+        self.flag = np.zeros((self.pseudo_length,))
+
+    def __getitem__(self, idx):
+        pseudo_idx = (idx + np.random.randint(self.balanced_length)) % self.balanced_length
+        return super().__getitem__(pseudo_idx)
+
+    def __len__(self):
+        return self.pseudo_length
