@@ -45,4 +45,8 @@ class SegIncrVOCDataset(CustomDataset):
             for i in gt:
                 label_schema.append(classes[i])
             model2data = map_class_names(classes, label_schema)
-            new_class_values = [model2d
+            new_class_values = [model2data[idx] for idx in new_class_indices]
+            if any(value is not -1 for value in new_class_values):
+                self.img_indices['new'].append(idx)
+            else:
+                self.img_indices['old'].append(idx)
