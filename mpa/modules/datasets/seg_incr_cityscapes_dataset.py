@@ -58,4 +58,39 @@ class SegIncrCityscapesDataset(CustomDataset):
                  results,
                  metric='mIoU',
                  logger=None,
-      
+                 imgfile_prefix=None,
+                 efficient_test=False,
+                 show_log=False):
+        """Evaluation in Cityscapes/default protocol.
+
+        Args:
+            results (list): Testing results of the dataset.
+            metric (str | list[str]): Metrics to be evaluated.
+            logger (logging.Logger | None | str): Logger used for printing
+                related information during evaluation. Default: None.
+            imgfile_prefix (str | None): The prefix of output image file,
+                for cityscapes evaluation only. It includes the file path and
+                the prefix of filename, e.g., "a/b/prefix".
+                If results are evaluated with cityscapes protocol, it would be
+                the prefix of output png files. The output files would be
+                png images under folder "a/b/prefix/xxx.png", where "xxx" is
+                the image name of cityscapes. If not specified, a temp file
+                will be created for evaluation.
+                Default: None.
+
+        Returns:
+            dict[str, float]: Cityscapes/default metrics.
+        """
+
+        eval_results = dict()
+        metrics = metric.copy() if isinstance(metric, list) else [metric]
+        if 'cityscapes' in metrics:
+            eval_results.update(self._evaluate_cityscapes(results, logger, imgfile_prefix))
+            metrics.remove('cityscapes')
+
+        if len(metrics) > 0:
+            eval_results.update(super(SegIncrCityscapesDataset, self).evaluate(
+                results, metrics, logger, efficient_test, show_log
+            ))
+
+        return eval_results
