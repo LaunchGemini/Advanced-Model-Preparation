@@ -46,3 +46,24 @@ class TaskAdaptEvalDataset(object):
             adapt_results.append(adapt_result)
 
         # Call evaluation w/ org arguments
+        return self.dataset.evaluate(adapt_results, **kwargs)
+
+
+@PIPELINES.register_module()
+class AdaptClassLabels(object):
+    """Data processor for task-adative annotation loading.
+    """
+    def __init__(self, src_classes, dst_classes):
+        self.src2dst = map_class_names(src_classes, dst_classes)
+        print('AdaptClassLabels')
+        print('src_classes', src_classes)
+        print('dst_classes', dst_classes)
+        print('src2dst', self.src2dst)
+
+    def __call__(self, data):
+        src_labels = data['gt_labels']
+        dst_labels = []
+        for src_label in src_labels:
+            dst_labels.append(self.src2dst[src_label])
+        data['gt_labels'] = np.array(dst_labels)
+        return data
