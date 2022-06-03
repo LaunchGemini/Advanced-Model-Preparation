@@ -117,4 +117,51 @@ class DualModelEMAHook(Hook):
                 dst_param = self.dst_params[name]
                 src_param.data.copy_(dst_param.data)
 
-    def _copy_model(sel
+    def _copy_model(self):
+        with torch.no_grad():
+            for name, src_param in self.src_params.items():
+                dst_param = self.dst_params[name]
+                dst_param.data.copy_(src_param.data)
+
+    def _ema_model(self):
+        momentum = min(self.momentum, 1.0)
+        with torch.no_grad():
+            for name, src_param in self.src_params.items():
+                dst_param = self.dst_params[name]
+                # dst_param.data.mul_(1 - momentum).add_(src_param.data, alpha=momentum)
+                dst_param.data.copy_(dst_param.data*(1 - momentum) + src_param.data*momentum)
+
+    def _diff_model(self):
+        diff_sum = 0.0
+        with torch.no_grad():
+            for name, src_param in self.src_params.items():
+                dst_param = self.dst_params[name]
+                diff = ((src_param - dst_param)**2).sum()
+                diff_sum += diff
+        return diff_sum
+
+
+@HOOKS.register_module()
+class CustomModelEMAHook(EMAHook):
+    def __init__(
+        self,
+        momentum=0.0002,
+        epoch_momentum=0.0,
+        interval=1,
+        **kwargs
+    ):
+        super().__init__(momentum=momentum, interval=interval, **kwargs)
+        self.momentum = momentum
+        self.epoch_momentum = epoch_momentum
+        self.interval = interval
+
+    def before_train_epoch(self, runner):
+        if self.epoch_momentum > 0.0:
+            iter_per_epoch = len(runner.data_loader)
+            epoch_decay = 1 - self.epoch_momentum
+            iter_decay = math.pow(epoch_decay, self.interval/iter_per_epoch)
+            self.momentum = 1 - iter_decay
+            logger.info(f'Update EMA momentum: {self.momentum}')
+            self.epoch_momentum = 0.0  # disable re-compute
+
+        super().before_train_epoch(runner)
