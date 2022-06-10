@@ -28,4 +28,40 @@ class SemiSLClsHook(Hook):
     def __init__(self,
                  total_steps=0,
                  unlabeled_warmup=True,
-                
+                 **kwargs):
+        self.unlabeled_warmup = unlabeled_warmup
+        self.total_steps = total_steps
+        self.current_step, self.unlabeled_coef = 0, 0
+        self.num_pseudo_label = 0
+
+    def before_train_iter(self, runner):
+        # Calculate the unlabeled warm-up loss coefficient before training iteration
+        if self.unlabeled_warmup and self.unlabeled_coef < 1.0:
+            if self.total_steps == 0:
+                self.total_steps = runner.max_iters
+            self.unlabeled_coef = 0.5 * (
+                1 - math.cos(
+                    min(math.pi, (2 * math.pi * self.current_step) / self.total_steps)
+                )
+            )
+            model = self._get_model(runner)
+            model.head.unlabeled_coef = self.unlabeled_coef
+        self.current_step += 1
+
+    def after_train_iter(self, runner):
+        model = self._get_model(runner)
+        # Add the number of pseudo-labels currently selected from iteration
+        self.num_pseudo_label += int(model.head.num_pseudo_label)
+
+    def after_epoch(self, runner):
+        # Add data related to Semi-SL to the log
+        if self.unlabeled_warmup:
+            runner.log_buffer.output.update({'unlabeled_loss': round(self.unlabeled_coef, 4)})
+        runner.log_buffer.output.update({'pseudo_label': self.num_pseudo_label})
+        self.num_pseudo_label = 0
+
+    def _get_model(self, runner):
+        model = runner.model
+        if is_module_wrapper(model):
+            model = model.module
+        return model
