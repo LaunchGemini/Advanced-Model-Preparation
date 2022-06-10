@@ -53,4 +53,41 @@ class SAMOptimizerHook(OptimizerHook):
                     if param.grad is None:
                         continue
                     e_w = param.grad * scale.to(param)
-                  
+                    param.add_(e_w)  # Climb toward gradient (increasing loss)
+                    param2move[param] = e_w  # Saving for param restore
+
+        # SAM gradient
+        runner.optimizer.zero_grad()
+        max_outputs = runner.model.train_step(current_batch, runner.optimizer)  # forward() on maxima param
+        max_loss = max_outputs['loss']
+        max_loss.backward()
+
+        # Restore to original param
+        with torch.no_grad():
+            for param_group in runner.optimizer.param_groups:
+                for param in param_group['params']:
+                    if param.grad is None:
+                        continue
+                    param.sub_(param2move[param])  # Down to original param
+
+        # Shaprpness-aware param update
+        runner.optimizer.step()  # param -= lr * sam_grad
+        runner.log_buffer.update({'sharpness': float(max_loss - curr_loss), 'max_loss': float(max_loss)})
+
+    def _get_current_batch(self, model):
+        if hasattr(model, 'module'):
+            model = model.module
+        return getattr(model, 'current_batch', None)
+
+    def _grad_norm(self, optimizer):
+        # put everything on the same device, in case of model parallelism
+        shared_device = optimizer.param_groups[0]["params"][0].device
+        norm = torch.norm(
+                    torch.stack([
+                        p.grad.norm(p=2).to(shared_device)
+                        for group in optimizer.param_groups for p in group["params"]
+                        if p.grad is not None
+                    ]),
+                    p=2
+               )
+        return norm
