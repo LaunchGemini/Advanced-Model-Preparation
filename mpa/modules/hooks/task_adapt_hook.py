@@ -46,4 +46,19 @@ class TaskAdaptHook(Hook):
     def before_epoch(self, runner):
         if self.sampler_flag:
             dataset = runner.data_loader.dataset
-            batch
+            batch_size = runner.data_loader.batch_size
+            num_workers = runner.data_loader.num_workers
+            collate_fn = runner.data_loader.collate_fn
+            worker_init_fn = runner.data_loader.worker_init_fn
+            if self.sampler_type == 'balanced':
+                sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+            else:
+                sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+            runner.data_loader = DataLoader(
+                dataset,
+                batch_size=batch_size,
+                sampler=sampler,
+                num_workers=num_workers,
+                collate_fn=collate_fn,
+                pin_memory=False,
+                worker_init_fn=worker_init_fn)
