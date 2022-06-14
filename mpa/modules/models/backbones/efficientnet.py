@@ -1079,3 +1079,461 @@ def efficientnet_b6b(in_size=(528, 528), **kwargs):
     """
     EfficientNet-B6-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (528, 528)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b6",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b6b",
+        **kwargs,
+    )
+
+
+def efficientnet_b7b(in_size=(600, 600), **kwargs):
+    """
+    EfficientNet-B7-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (600, 600)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b7",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b7b",
+        **kwargs,
+    )
+
+
+def efficientnet_b0c(in_size=(224, 224), **kwargs):
+    """
+    EfficientNet-B0-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (224, 224)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b0",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b0c",
+        **kwargs,
+    )
+
+
+def efficientnet_b1c(in_size=(240, 240), **kwargs):
+    """
+    EfficientNet-B1-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (240, 240)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b1",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b1c",
+        **kwargs,
+    )
+
+
+def efficientnet_b2c(in_size=(260, 260), **kwargs):
+    """
+    EfficientNet-B2-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (260, 260)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b2",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b2c",
+        **kwargs,
+    )
+
+
+def efficientnet_b3c(in_size=(300, 300), **kwargs):
+    """
+    EfficientNet-B3-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (300, 300)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b3",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b3c",
+        **kwargs,
+    )
+
+
+def efficientnet_b4c(in_size=(380, 380), **kwargs):
+    """
+    EfficientNet-B4-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (380, 380)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b4",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b4c",
+        **kwargs,
+    )
+
+
+def efficientnet_b5c(in_size=(456, 456), **kwargs):
+    """
+    EfficientNet-B5-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (456, 456)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b5",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b5c",
+        **kwargs,
+    )
+
+
+def efficientnet_b6c(in_size=(528, 528), **kwargs):
+    """
+    EfficientNet-B6-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (528, 528)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b6",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b6c",
+        **kwargs,
+    )
+
+
+def efficientnet_b7c(in_size=(600, 600), **kwargs):
+    """
+    EfficientNet-B7-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (600, 600)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b7",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b7c",
+        **kwargs,
+    )
+
+
+def efficientnet_b8c(in_size=(672, 672), **kwargs):
+    """
+    EfficientNet-B8-c (like TF-implementation, trained with AdvProp) model from 'EfficientNet: Rethinking Model Scaling
+    for Convolutional Neural Networks,' https://arxiv.org/abs/1905.11946.
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (672, 672)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.torch/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(
+        version="b8",
+        in_size=in_size,
+        tf_mode=True,
+        bn_eps=1e-3,
+        model_name="efficientnet_b8c",
+        **kwargs,
+    )
+
+
+def _calc_width(net):
+    import numpy as np
+
+    net_params = filter(lambda p: p.requires_grad, net.parameters())
+    weight_count = 0
+    for param in net_params:
+        weight_count += np.prod(param.size())
+    return weight_count
+
+
+def _test():
+    import torch
+
+    pretrained = False
+
+    models = [
+        efficientnet_b0,
+        efficientnet_b1,
+        efficientnet_b2,
+        efficientnet_b3,
+        efficientnet_b4,
+        efficientnet_b5,
+        efficientnet_b6,
+        efficientnet_b7,
+        efficientnet_b8,
+        efficientnet_b0b,
+        efficientnet_b1b,
+        efficientnet_b2b,
+        efficientnet_b3b,
+        efficientnet_b4b,
+        efficientnet_b5b,
+        efficientnet_b6b,
+        efficientnet_b7b,
+        efficientnet_b0c,
+        efficientnet_b1c,
+        efficientnet_b2c,
+        efficientnet_b3c,
+        efficientnet_b4c,
+        efficientnet_b5c,
+        efficientnet_b6c,
+        efficientnet_b7c,
+        efficientnet_b8c,
+    ]
+
+    for model in models:
+
+        net = model(pretrained=pretrained)
+
+        # net.train()
+        net.eval()
+        weight_count = _calc_width(net)
+        print("m={}, {}".format(model.__name__, weight_count))
+        assert model != efficientnet_b0 or weight_count == 5288548
+        assert model != efficientnet_b1 or weight_count == 7794184
+        assert model != efficientnet_b2 or weight_count == 9109994
+        assert model != efficientnet_b3 or weight_count == 12233232
+        assert model != efficientnet_b4 or weight_count == 19341616
+        assert model != efficientnet_b5 or weight_count == 30389784
+        assert model != efficientnet_b6 or weight_count == 43040704
+        assert model != efficientnet_b7 or weight_count == 66347960
+        assert model != efficientnet_b8 or weight_count == 87413142
+        assert model != efficientnet_b0b or weight_count == 5288548
+        assert model != efficientnet_b1b or weight_count == 7794184
+        assert model != efficientnet_b2b or weight_count == 9109994
+        assert model != efficientnet_b3b or weight_count == 12233232
+        assert model != efficientnet_b4b or weight_count == 19341616
+        assert model != efficientnet_b5b or weight_count == 30389784
+        assert model != efficientnet_b6b or weight_count == 43040704
+        assert model != efficientnet_b7b or weight_count == 66347960
+
+        x = torch.randn(1, 3, net.in_size[0], net.in_size[1])
+        y = net(x)
+        y.sum().backward()
+        assert tuple(y.size()) == (1, 1000)
+
+
+@BACKBONES.register_module()
+class OTEEfficientNet(EfficientNet):
+    """
+    Create EfficientNet model with specific parameters.
+    Parameters:
+    ----------
+    version : str
+        Version of EfficientNet ('b0'...'b8').
+    in_size : tuple of two ints
+        Spatial size of the expected input image.
+    """
+
+    def __init__(self, version, **kwargs):
+        self.model_name = "efficientnet_" + version
+
+        if version == "b0":
+            in_size = (224, 224)
+            depth_factor = 1.0
+            width_factor = 1.0
+        elif version == "b1":
+            in_size = (240, 240)
+            depth_factor = 1.1
+            width_factor = 1.0
+        elif version == "b2":
+            in_size = (260, 260)
+            depth_factor = 1.2
+            width_factor = 1.1
+        elif version == "b3":
+            in_size = (300, 300)
+            depth_factor = 1.4
+            width_factor = 1.2
+        elif version == "b4":
+            in_size = (380, 380)
+            depth_factor = 1.8
+            width_factor = 1.4
+        elif version == "b5":
+            in_size = (456, 456)
+            depth_factor = 2.2
+            width_factor = 1.6
+        elif version == "b6":
+            in_size = (528, 528)
+            depth_factor = 2.6
+            width_factor = 1.8
+        elif version == "b7":
+            in_size = (600, 600)
+            depth_factor = 3.1
+            width_factor = 2.0
+        elif version == "b8":
+            in_size = (672, 672)
+            depth_factor = 3.6
+            width_factor = 2.2
+        else:
+            raise ValueError("Unsupported EfficientNet version {}".format(version))
+
+        init_block_channels = 32
+        layers = [1, 2, 2, 3, 3, 4, 1]
+        downsample = [1, 1, 1, 1, 0, 1, 0]
+        channels_per_layers = [16, 24, 40, 80, 112, 192, 320]
+        expansion_factors_per_layers = [1, 6, 6, 6, 6, 6, 6]
+        kernel_sizes_per_layers = [3, 3, 5, 3, 5, 5, 3]
+        strides_per_stage = [1, 2, 2, 2, 1, 2, 1]
+        final_block_channels = 1280
+
+        layers = [int(math.ceil(li * depth_factor)) for li in layers]
+        channels_per_layers = [
+            round_channels(ci * width_factor) for ci in channels_per_layers
+        ]
+
+        from functools import reduce
+
+        channels = reduce(
+            lambda x, y: x + [[y[0]] * y[1]]
+            if y[2] != 0
+            else x[:-1] + [x[-1] + [y[0]] * y[1]],
+            zip(channels_per_layers, layers, downsample),
+            [],
+        )
+        kernel_sizes = reduce(
+            lambda x, y: x + [[y[0]] * y[1]]
+            if y[2] != 0
+            else x[:-1] + [x[-1] + [y[0]] * y[1]],
+            zip(kernel_sizes_per_layers, layers, downsample),
+            [],
+        )
+        expansion_factors = reduce(
+            lambda x, y: x + [[y[0]] * y[1]]
+            if y[2] != 0
+            else x[:-1] + [x[-1] + [y[0]] * y[1]],
+            zip(expansion_factors_per_layers, layers, downsample),
+            [],
+        )
+        strides_per_stage = reduce(
+            lambda x, y: x + [[y[0]] * y[1]]
+            if y[2] != 0
+            else x[:-1] + [x[-1] + [y[0]] * y[1]],
+            zip(strides_per_stage, layers, downsample),
+            [],
+        )
+        strides_per_stage = [si[0] for si in strides_per_stage]
+
+        init_block_channels = round_channels(init_block_channels * width_factor)
+
+        if width_factor > 1.0:
+            assert int(final_block_channels * width_factor) == round_channels(
+                final_block_channels * width_factor
+            )
+            final_block_channels = round_channels(final_block_channels * width_factor)
+
+        super().__init__(
+            channels=channels,
+            init_block_channels=init_block_channels,
+            final_block_channels=final_block_channels,
+            kernel_sizes=kernel_sizes,
+            strides_per_stage=strides_per_stage,
+            expansion_factors=expansion_factors,
+            dropout_cls=dict(dist="none"),
+            tf_mode=False,
+            bn_eps=1e-5,
+            in_size=in_size,
+            **kwargs,
+        )
+        self.init_weights(self.pretrained)
+
+    def forward(self, x):
+        return super().forward(x, return_featuremaps=True)
+
+    def init_weights(self, pretrained=None):
+        if isinstance(pretrained, str) and os.path.exists(pretrained):
+            load_checkpoint(self, pretrained)
+            logger.info(f"init weight - {pretrained}")
+        elif pretrained is not None:
+            load_checkpoint(self, pretrained_urls[self.model_name])
+            logger.info(f"init weight - {pretrained_urls[self.model_name]}")
