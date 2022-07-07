@@ -1,10 +1,12 @@
+
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 import functools
 from mmdet.models.builder import DETECTORS
-from mmdet.models.detectors.mask_rcnn import MaskRCNN
+from mmdet.models.detectors.two_stage import TwoStageDetector
+
 from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
@@ -14,7 +16,9 @@ logger = get_logger()
 
 
 @DETECTORS.register_module()
-class CustomMaskRCNN(SAMDetectorMixin, L2SPDetectorMixin, MaskRCNN):
+class CustomTwoStageDetector(SAMDetectorMixin, L2SPDetectorMixin, TwoStageDetector):
+    """SAM optimizer & L2SP regularizer enabled custom 2-stage detector
+    """
     def __init__(self, *args, task_adapt=None, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -29,11 +33,26 @@ class CustomMaskRCNN(SAMDetectorMixin, L2SPDetectorMixin, MaskRCNN):
                 )
             )
 
+    def forward_train(self,
+                      img,
+                      img_metas,
+                      gt_bboxes,
+                      gt_labels,
+                      gt_bboxes_ignore=None,
+                      **kwargs):
+        return super().forward_train(
+              img,
+              img_metas,
+              gt_bboxes,
+              gt_labels,
+              gt_bboxes_ignore=gt_bboxes_ignore
+        )
+
     @staticmethod
     def load_state_dict_pre_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
         """Modify input state_dict according to class name matching before weight loading
         """
-        logger.info(f'----------------- CustomMaskRCNN.load_state_dict_pre_hook() called w/ prefix: {prefix}')
+        logger.info(f'----------------- CustomTwoStageDetector.load_state_dict_pre_hook() called w/ prefix: {prefix}')
 
         # Dst to src mapping index
         model_dict = model.state_dict()
