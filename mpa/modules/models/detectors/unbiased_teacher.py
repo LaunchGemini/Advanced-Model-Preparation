@@ -39,4 +39,90 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
 
         cfg = kwargs.copy()
         arch_type = cfg.pop('arch_type')
-        cfg['ty
+        cfg['type'] = arch_type
+        self.model_s = build_detector(cfg)
+        self.model_t = copy.deepcopy(self.model_s)
+
+        # Hooks for super_type transparent weight load/save
+        self._register_state_dict_hook(self.state_dict_hook)
+        self._register_load_state_dict_pre_hook(
+            functools.partial(self.load_state_dict_pre_hook, self)
+        )
+
+    def extract_feat(self, imgs):
+        return self.model_t.extract_feat(imgs)
+
+    def simple_test(self, img, img_metas, **kwargs):
+        return self.model_t.simple_test(img, img_metas, **kwargs)
+
+    def aug_test(self, imgs, img_metas, **kwargs):
+        return self.model_t.aug_test(imgs, img_metas, **kwargs)
+
+    def forward_dummy(self, img, **kwargs):
+        return self.model_t.forward_dummy(img, **kwargs)
+
+    def enable_unlabeled_loss(self, mode=True):
+        self.unlabeled_loss_enabled = mode
+
+    def forward_train(self,
+                      img,
+                      img_metas,
+                      img0,
+                      gt_bboxes,
+                      gt_labels,
+                      gt_bboxes_ignore=None,
+                      **kwargs):
+
+        losses = {}
+
+        # Supervised loss
+        # TODO: check img0 only option (which is common for mean teacher method)
+        sl_losses = self.model_s.forward_train(
+            torch.cat((img0, img)),  # weak + hard augmented images
+            img_metas + img_metas,
+            gt_bboxes + gt_bboxes,
+            gt_labels + gt_labels,
+            gt_bboxes_ignore + gt_bboxes_ignore if gt_bboxes_ignore else None
+        )
+        losses.update(sl_losses)
+
+        # Pseudo labels from teacher
+        ul_args = kwargs.get('extra_0', {})  # Supposing ComposedDL([labeled, unlabeled]) data loader
+        ul_img = ul_args.get('img')
+        ul_img0 = ul_args.get('img0')
+        ul_img_metas = ul_args.get('img_metas')
+        if ul_img is None:
+            return losses
+        with torch.no_grad():
+            teacher_outputs = self.model_t.forward_test(
+                [ul_img0],  # easy augmentation
+                [ul_img_metas],
+                rescale=False,
+                postprocess=False
+            )
+        pseudo_bboxes, pseudo_labels, pseudo_ratio = self.generate_pseudo_labels(teacher_outputs, **kwargs)
+        ps_recall = self.eval_pseudo_label_recall(pseudo_bboxes, ul_args.get('gt_bboxes', []))
+        losses.update(ps_recall=ps_recall)
+        losses.update(ps_ratio=torch.Tensor([pseudo_ratio]))
+
+        if not self.unlabeled_loss_enabled or self.unlabeled_loss_weight <= 0.001:  # TODO: move back
+            return losses
+
+        # Unsupervised loss
+        if self.bg_loss_weight >= 0.0:
+            self.model_s.bbox_head.bg_loss_weight = self.bg_loss_weight
+        ul_losses = self.model_s.forward_train(
+            ul_img,  # hard augmentation
+            ul_img_metas,
+            pseudo_bboxes,
+            pseudo_labels
+        )
+        if self.bg_loss_weight >= 0.0:
+            self.model_s.bbox_head.bg_loss_weight = -1.0
+
+        for ul_loss_name in self.unlabeled_loss_names:
+            ul_loss = ul_losses[ul_loss_name]
+            if isinstance(ul_loss, torch.Tensor):
+                ul_loss = [ul_loss]
+            losses[ul_loss_name + '_ul'] = [
+                los
