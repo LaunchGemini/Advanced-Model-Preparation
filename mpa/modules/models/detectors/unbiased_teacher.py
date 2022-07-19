@@ -194,4 +194,8 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
         """Redirect input state_dict to teacher model
         """
         logger.info('----------------- UnbiasedTeacher.load_state_dict_pre_hook() called')
-        for k in
+        for k in list(state_dict.keys()):
+            v = state_dict.pop(k)
+            if 'model_s.' not in k:
+                k = 'model_t.' + k
+            state_dict[k] = v
