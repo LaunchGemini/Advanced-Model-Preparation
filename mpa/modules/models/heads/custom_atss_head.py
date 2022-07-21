@@ -144,4 +144,88 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
         bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
         centerness = centerness.permute(0, 2, 3, 1).reshape(-1)
         bbox_targets = bbox_targets.reshape(-1, 4)
-        labels = labels
+        labels = labels.reshape(-1)
+        label_weights = label_weights.reshape(-1)
+        valid_label_mask = valid_label_mask.reshape(-1, self.cls_out_channels)
+
+        # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
+        bg_class_ind = self.num_classes
+        pos_inds = ((labels >= 0)
+                    & (labels < bg_class_ind)).nonzero().squeeze(1)
+
+        if self.use_qfl:
+            quality = label_weights.new_zeros(labels.shape)
+
+        if len(pos_inds) > 0:
+            pos_bbox_targets = bbox_targets[pos_inds]
+            pos_bbox_pred = bbox_pred[pos_inds]
+            pos_anchors = anchors[pos_inds]
+            pos_centerness = centerness[pos_inds]
+
+            centerness_targets = self.centerness_target(
+                pos_anchors, pos_bbox_targets)
+            pos_decode_bbox_pred = self.bbox_coder.decode(
+                pos_anchors, pos_bbox_pred)
+            pos_decode_bbox_targets = self.bbox_coder.decode(
+                pos_anchors, pos_bbox_targets)
+
+            if self.use_qfl:
+                quality[pos_inds] = bbox_overlaps(
+                    pos_decode_bbox_pred.detach(),
+                    pos_decode_bbox_targets,
+                    is_aligned=True).clamp(min=1e-6)
+
+            # regression loss
+            loss_bbox = self.loss_bbox(
+                pos_decode_bbox_pred,
+                pos_decode_bbox_targets,
+                weight=centerness_targets,
+                avg_factor=1.0)
+
+            # centerness loss
+            loss_centerness = self.loss_centerness(
+                pos_centerness,
+                centerness_targets,
+                avg_factor=num_total_samples)
+
+        else:
+            loss_bbox = bbox_pred.sum() * 0
+            loss_centerness = centerness.sum() * 0
+            centerness_targets = bbox_targets.new_tensor(0.)
+
+        # Re-weigting BG loss
+        if self.bg_loss_weight >= 0.0:
+            neg_indices = (labels == self.num_classes)
+            label_weights[neg_indices] = self.bg_loss_weight
+
+        if self.use_qfl:
+            labels = (labels, quality)  # For quality focal loss arg spec
+
+        # classification loss
+        if isinstance(self.loss_cls, CrossSigmoidFocalLoss):
+            loss_cls = self.loss_cls(
+                cls_score, labels, label_weights, avg_factor=num_total_samples, valid_label_mask=valid_label_mask)
+        else:
+            loss_cls = self.loss_cls(
+                cls_score, labels, label_weights, avg_factor=num_total_samples)
+
+        return loss_cls, loss_bbox, loss_centerness, centerness_targets.sum()
+
+    def get_targets(self,
+                    anchor_list,
+                    valid_flag_list,
+                    gt_bboxes_list,
+                    img_metas,
+                    gt_bboxes_ignore_list=None,
+                    gt_labels_list=None,
+                    label_channels=1,
+                    unmap_outputs=True):
+        """Get targets for Detection head.
+
+        This method is almost the same as `AnchorHead.get_targets()`. Besides
+        returning the targets as the parent method does, it also returns the
+        anchors as the first element of the returned tuple.
+        However, if the detector's head loss uses CrossSigmoidFocalLoss,
+        the labels_weights_list consists of (binarized label schema * weights) of batch images
+        """
+      
