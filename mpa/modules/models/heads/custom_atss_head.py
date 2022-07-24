@@ -228,4 +228,11 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
         However, if the detector's head loss uses CrossSigmoidFocalLoss,
         the labels_weights_list consists of (binarized label schema * weights) of batch images
         """
-      
+        return self.get_atss_targets(anchor_list,
+                                     valid_flag_list,
+                                     gt_bboxes_list,
+                                     img_metas,
+                                     gt_bboxes_ignore_list,
+                                     gt_labels_list,
+                                     label_channels,
+                                     unmap_outputs)
