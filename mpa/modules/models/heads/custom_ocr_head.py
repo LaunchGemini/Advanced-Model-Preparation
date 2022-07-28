@@ -40,4 +40,52 @@ class CustomOCRHead(OCRHead):
         valid_label_mask = get_valid_label_mask_per_batch(img_metas, self.num_classes)
         losses = self.losses(seg_logits, gt_semantic_seg, valid_label_mask, train_cfg, pixel_weights)
 
-        return losses, seg_
+        return losses, seg_logits
+
+    @force_fp32(apply_to=('seg_logit', ))
+    def losses(self, seg_logit, seg_label, valid_label_mask, train_cfg, pixel_weights=None):
+        """Compute segmentation loss."""
+
+        loss = dict()
+
+        seg_logit = resize(
+            input=seg_logit,
+            size=seg_label.shape[2:],
+            mode='bilinear',
+            align_corners=self.align_corners
+        )
+
+        seg_label = seg_label.squeeze(1)
+        out_losses = dict()
+        for loss_idx, loss_module in enumerate(self.loss_modules):
+            loss_value, loss_meta = loss_module(
+                seg_logit,
+                seg_label,
+                valid_label_mask,
+                pixel_weights=pixel_weights
+            )
+
+            loss_name = loss_module.name + f'-{loss_idx}'
+            out_losses[loss_name] = loss_value
+            loss.update(add_prefix(loss_meta, loss_name))
+
+        if self.enable_loss_equalizer and len(self.loss_modules) > 1:
+            out_losses = self.loss_equalizer.reweight(out_losses)
+
+        for loss_name, loss_value in out_losses.items():
+            loss[loss_name] = loss_value
+
+        loss['loss_seg'] = sum(out_losses.values())
+        loss['acc_seg'] = accuracy(seg_logit, seg_label)
+
+        if train_cfg.mix_loss.enable:
+            mix_loss = self._mix_loss(
+                seg_logit,
+                seg_label,
+                ignore_index=self.ignore_index
+            )
+
+            mix_loss_weight = train_cfg.mix_loss.get('weight', 1.0)
+            loss['loss_mix'] = mix_loss_weight * mix_loss
+
+        return loss
