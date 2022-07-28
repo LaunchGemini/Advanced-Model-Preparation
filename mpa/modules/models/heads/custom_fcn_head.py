@@ -65,4 +65,29 @@ class CustomFCNHead(FCNHead):
                 seg_label,
                 valid_label_mask,
                 pixel_weights=pixel_weights
-          
+            )
+
+            loss_name = loss_module.name + f'-{loss_idx}'
+            out_losses[loss_name] = loss_value
+            loss.update(add_prefix(loss_meta, loss_name))
+
+        if self.enable_loss_equalizer and len(self.loss_modules) > 1:
+            out_losses = self.loss_equalizer.reweight(out_losses)
+
+        for loss_name, loss_value in out_losses.items():
+            loss[loss_name] = loss_value
+
+        loss['loss_seg'] = sum(out_losses.values())
+        loss['acc_seg'] = accuracy(seg_logit, seg_label)
+
+        if train_cfg.mix_loss.enable:
+            mix_loss = self._mix_loss(
+                seg_logit,
+                seg_label,
+                ignore_index=self.ignore_index
+            )
+
+            mix_loss_weight = train_cfg.mix_loss.get('weight', 1.0)
+            loss['loss_mix'] = mix_loss_weight * mix_loss
+
+        return loss
