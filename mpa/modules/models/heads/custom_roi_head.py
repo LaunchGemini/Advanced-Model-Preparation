@@ -165,4 +165,12 @@ class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
                             bbox_pred.size(0), -1,
                             4)[pos_inds.type(torch.bool),
                                labels[pos_inds.type(torch.bool)]]
-                  
+                    losses['loss_bbox'] = self.loss_bbox(
+                        pos_bbox_pred,
+                        bbox_targets[pos_inds.type(torch.bool)],
+                        bbox_weights[pos_inds.type(torch.bool)],
+                        avg_factor=bbox_targets.size(0),
+                        reduction_override=reduction_override)
+                else:
+                    losses['loss_bbox'] = bbox_pred[pos_inds].sum()
+            return losses
