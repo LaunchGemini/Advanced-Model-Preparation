@@ -73,4 +73,16 @@ class MultiClsHead(ClsHead):
         losses = dict()
         loss = 0.0
         gt_labels = gt_labels.t()
-        losses['ac
+        losses['accuracy'] = {}
+        for cls_score, gt_label, task_name in zip(cls_scores, gt_labels, self.tasks):
+            num_samples = len(cls_score)
+
+            # compute loss
+            loss += self.compute_loss(cls_score, gt_label.contiguous(), avg_factor=num_samples)
+            # compute accuracy
+            acc = self.compute_accuracy(cls_score, gt_label)
+            assert len(acc) == len(self.topk)
+            losses['accuracy'].update({f'{task_name} top-{k}': a for k, a in zip(self.topk, acc)})
+
+        losses['loss'] = loss / len(cls_scores)
+        return losses
