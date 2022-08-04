@@ -76,4 +76,69 @@ class SemiSLClsHead(LinearClsHead):
         if len(logits_u_s) > 0:
             # compute unsupervised loss
             lu = (
-                
+                self.compute_loss(logits_u_s, pseudo_label, avg_factor=len(logits_u_s))
+                * mask
+            )
+        losses["loss"] = lx + self.unlabeled_coef * lu
+
+        # compute accuracy
+        acc = self.compute_accuracy(logits_x, gt_label)
+        losses["accuracy"] = {f"top-{k}": a for k, a in zip(self.topk, acc)}
+        return losses
+
+    def forward_train(self, x, gt_label):
+        """forward_train head using pseudo-label selected through threshold
+
+        Args:
+            x (dict or Tensor): dict(labeled, unlabeled_weak, unlabeled_strong) or NxC input features.
+            gt_label (Tensor): NxC target features.
+
+        Returns:
+            dict[str, Tensor]: A dictionary of loss components.
+        """
+        label_u, mask = None, None
+        if isinstance(x, dict):
+            outputs = self.fc(x["labeled"])  # Logit of Labeled Img
+            batch_size = len(outputs)
+
+            with torch.no_grad():
+                logit_uw = self.fc(x["unlabeled_weak"])
+                pseudo_label = torch.softmax(logit_uw.detach(), dim=-1)
+                max_probs, label_u = torch.max(pseudo_label, dim=-1)
+
+                # select Pseudo-Label using flexible threhold
+                if torch.cuda.is_available():
+                    max_probs = max_probs.cuda()
+                mask = max_probs.ge(self.classwise_acc[label_u]).float()
+                self.num_pseudo_label = mask.sum()
+
+                if self.use_dynamic_threshold:
+                    # get Labeled Data True Positive Confidence
+                    logit_x = torch.softmax(outputs.detach(), dim=-1)
+                    x_probs, x_idx = torch.max(logit_x, dim=-1)
+                    x_probs = x_probs[x_idx == gt_label]
+                    x_idx = x_idx[x_idx == gt_label]
+
+                    # get Unlabeled Data Selected Confidence
+                    uw_probs = max_probs[mask == 1]
+                    uw_idx = label_u[mask == 1]
+
+                    # update class-wise accuracy
+                    for i in set(x_idx.tolist() + uw_idx.tolist()):
+                        current_conf = torch.tensor(
+                            [x_probs[x_idx == i].mean(), uw_probs[uw_idx == i].mean()]
+                        )
+                        current_conf = current_conf[~current_conf.isnan()].mean()
+                        self.classwise_acc[i] = max(current_conf, self.min_threshold)
+
+            outputs = torch.cat((outputs, self.fc(x["unlabeled_strong"])))
+        else:
+            outputs = self.fc(x)
+            batch_size = len(outputs)
+
+        logits_x = outputs[:batch_size]
+        logits_u = outputs[batch_size:]
+        del outputs
+        logits = (logits_x, logits_u)
+        losses = self.loss(logits, gt_label, label_u, mask)
+        return losses
