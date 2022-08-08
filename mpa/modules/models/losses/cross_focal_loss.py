@@ -65,3 +65,51 @@ def cross_sigmoid_focal_loss(inputs,
     elif reduction == "sum":
         loss = loss.sum()
     return loss
+
+
+@LOSSES.register_module()
+class CrossSigmoidFocalLoss(nn.Module):
+    def __init__(self,
+                 use_sigmoid=True,
+                 num_classes=None,
+                 gamma=2.0,
+                 alpha=0.25,
+                 reduction='mean',
+                 loss_weight=1.0,
+                 ignore_index=None):
+        super(CrossSigmoidFocalLoss, self).__init__()
+        self.reduction = reduction
+        self.loss_weight = loss_weight
+        self.gamma = gamma
+        self.alpha = alpha
+        self.ignore_index = ignore_index
+        self.num_classes = num_classes
+        self.use_sigmoid = use_sigmoid
+
+        self.cls_criterion = cross_sigmoid_focal_loss
+
+    def forward(self,
+                pred,
+                targets,
+                weight=None,
+                reduction_override=None,
+                avg_factor=None,
+                use_vfl=False,
+                valid_label_mask=None,
+                **kwargs):
+        assert reduction_override in (None, 'none', 'mean', 'sum')
+        reduction = (
+            reduction_override if reduction_override else self.reduction)
+        loss_cls = self.loss_weight * self.cls_criterion(
+            pred,
+            targets,
+            weight=weight,
+            num_classes=self.num_classes,
+            alpha=self.alpha,
+            gamma=self.gamma,
+            reduction=reduction,
+            avg_factor=avg_factor,
+            use_vfl=use_vfl,
+            valid_label_mask=valid_label_mask
+            )
+        return loss_cls
