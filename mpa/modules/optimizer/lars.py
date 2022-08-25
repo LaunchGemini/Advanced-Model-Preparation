@@ -92,4 +92,73 @@ class LARS(Optimizer):
 
         self.mode = mode
 
-        super(LA
+        super(LARS, self).__init__(new_param_groups, defaults)
+
+    def __setstate__(self, state):
+        super(LARS, self).__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('nesterov', False)
+
+    @torch.no_grad()
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Args:
+            closure (callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
+        for group in self.param_groups:
+            weight_decay = group['weight_decay']
+            momentum = group['momentum']
+            dampening = group['dampening']
+            nesterov = group['nesterov']
+            eta = group['eta']
+            lars_exclude = group.get('lars_exclude', False)
+
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                d_p = p.grad
+
+                # Add weight decay before computing adaptive LR.
+                # Seems to be pretty important in SIMclr style models.
+                local_lr = 1.
+                if self.mode == 'selfsl':
+                    if weight_decay != 0:
+                        d_p = d_p.add(p, alpha=weight_decay)
+                    if not lars_exclude:
+                        weight_norm = torch.norm(p).item()
+                        grad_norm = torch.norm(d_p).item()
+                        if weight_norm > 0 and grad_norm > 0:
+                            local_lr = eta * weight_norm / grad_norm
+                else:
+                    if not lars_exclude:
+                        weight_norm = torch.norm(p).item()
+                        grad_norm = torch.norm(d_p).item()
+                        local_lr = eta * weight_norm / \
+                            (grad_norm + weight_decay * weight_norm)
+                    if weight_decay != 0:
+                        d_p = d_p.add(p, alpha=weight_decay)
+
+                d_p = d_p.mul(local_lr)
+
+                if momentum != 0:
+                    param_state = self.state[p]
+                    if 'momentum_buffer' not in param_state:
+                        buf = param_state['momentum_buffer'] = torch.clone(d_p).detach()
+                    else:
+                        buf = param_state['momentum_buffer']
+                        buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
+                    if nesterov:
+                        d_p = d_p.add(buf, alpha=momentum)
+                    else:
+                        d_p = buf
+
+                p.add_(d_p, alpha=-group['lr'])
+
+        return loss
