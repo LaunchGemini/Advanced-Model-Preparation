@@ -50,4 +50,16 @@ class SegExporter(SegStage):
 
             export_model(model, cfg, output_path, target='openvino', output_logits=True, input_format='bgr', precision=precision)
         except Exception as ex:
-            # output_model.model_status = ModelStat
+            # output_model.model_status = ModelStatus.FAILED
+            # raise RuntimeError('Optimization was unsuccessful.') from ex
+            return {'outputs': None, 'msg': f'exception {type(ex)}'}
+        bin_file = [f for f in os.listdir(output_path) if f.endswith('.bin')][0]
+        xml_file = [f for f in os.listdir(output_path) if f.endswith('.xml')][0]
+        logger.info('Exporting completed')
+        return {
+            'outputs': {
+                'bin': os.path.join(output_path, bin_file),
+                'xml': os.path.join(output_path, xml_file)
+            },
+            'msg': ''
+        }
