@@ -123,4 +123,74 @@ class Stage(object):
             if hasattr(cfg, 'checkpoint_config'):
                 if hasattr(cfg.checkpoint_config, 'interval'):
                     if cfg.checkpoint_config.interval > max_epochs:
-                        logger.warning(f'adjusted checkpoint interval from {cfg.checkpoint_config.interval} to 
+                        logger.warning(f'adjusted checkpoint interval from {cfg.checkpoint_config.interval} to {max_epochs} \
+                            since max_epoch is shorter than ckpt interval configuration')
+                        cfg.checkpoint_config.interval = max_epochs
+
+        if hasattr(cfg, 'seed'):
+            _set_random_seed(cfg.seed, deterministic=cfg.get('deterministic', False))
+        else:
+            cfg.seed = None
+
+        # Work directory
+        work_dir = cfg.get('work_dir', '')
+        work_dir = os.path.join(self.output_prefix, work_dir if work_dir else '', self.output_suffix)
+        cfg.work_dir = os.path.abspath(work_dir)
+        logger.info(f'work dir = {cfg.work_dir}')
+        mmcv.mkdir_or_exist(os.path.abspath(work_dir))
+
+        if not hasattr(cfg, 'gpu_ids'):
+            gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+            logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
+            if gpu_ids is not None:
+                if isinstance(gpu_ids, str):
+                    cfg.gpu_ids = range(len(gpu_ids.split(',')))
+                else:
+                    raise ValueError(f'not supported type for gpu_ids: {type(gpu_ids)}')
+            else:
+                cfg.gpu_ids = range(1)
+
+        # config logger replace hook
+        hook_cfg = ConfigDict(
+            type='LoggerReplaceHook'
+        )
+        update_or_add_custom_hook(cfg, hook_cfg)
+
+        self.cfg = cfg
+
+    def run(self, **kwargs):
+        raise NotImplementedError
+
+    def _init_logger(self, **kwargs):
+        timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+        config_logger(os.path.join(self.cfg.work_dir, f'{timestamp}.log'), level=self.cfg.log_level)
+        logger.info(f'configured logger at {self.cfg.work_dir} with named {timestamp}.log')
+        return logger
+
+    @staticmethod
+    def configure_data(cfg, training, **kwargs):
+        # update data configuration using image options
+        def configure_split(target):
+
+            def update_transform(opt, pipeline, idx, transform):
+                if isinstance(opt, dict):
+                    if '_delete_' in opt.keys() and opt.get('_delete_', False):
+                        # if option include _delete_=True, remove this transform from pipeline
+                        logger.info(f"configure_data: {transform['type']} is deleted")
+                        del pipeline[idx]
+                        return
+                    logger.info(f"configure_data: {transform['type']} is updated with {opt}")
+                    transform.update(**opt)
+
+            def update_config(src, pipeline_options):
+                logger.info(f'update_config() {pipeline_options}')
+                if src.get('pipeline') is not None or \
+                        (src.get('dataset') is not None and src.get('dataset').get('pipeline') is not None):
+                    if src.get('pipeline') is not None:
+                        pipeline = src.get('pipeline', None)
+                    else:
+                        pipeline = src.get('dataset').get('pipeline')
+                    if isinstance(pipeline, list):
+                        for idx, transform in enumerate(pipeline):
+                            for opt_key, opt in pipeline_options.items():
+                                if tran
