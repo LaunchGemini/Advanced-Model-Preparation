@@ -110,4 +110,55 @@ class SegTrainer(SegStage):
 
         # Save config
         # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
-        # logger.inf
+        # logger.info(f'Config:\n{cfg.pretty_text}')
+
+        if distributed:
+            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
+            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
+            mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
+                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
+        else:
+            SegTrainer.train_worker(
+                None,
+                target_classes,
+                datasets,
+                cfg,
+                distributed,
+                True,
+                timestamp,
+                meta
+            )
+
+        # Save outputs
+        output_ckpt_path = os.path.join(cfg.work_dir, 'latest.pth')
+        best_ckpt_path = glob.glob(os.path.join(cfg.work_dir, 'best_mDice_*.pth'))
+        if len(best_ckpt_path) > 0:
+            output_ckpt_path = best_ckpt_path[0]
+        best_ckpt_path = glob.glob(os.path.join(cfg.work_dir, 'best_mIoU_*.pth'))
+        if len(best_ckpt_path) > 0:
+            output_ckpt_path = best_ckpt_path[0]
+        return dict(final_ckpt=output_ckpt_path)
+
+    @staticmethod
+    def train_worker(gpu, target_classes, datasets, cfg, distributed=False, validate=False,
+                     timestamp=None, meta=None):
+        # logger = get_logger()
+        if distributed:
+            torch.cuda.set_device(gpu)
+            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
+                                    world_size=len(cfg.gpu_ids), rank=gpu)
+            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
+
+        # Model
+        model = build_segmentor(cfg.model)
+        model.CLASSES = target_classes
+
+        train_segmentor(
+            model,
+            datasets,
+            cfg,
+            distributed=distributed,
+            validate=True,
+            timestamp=timestamp,
+            meta=meta
+        )
