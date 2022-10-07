@@ -193,4 +193,76 @@ class Stage(object):
                     if isinstance(pipeline, list):
                         for idx, transform in enumerate(pipeline):
                             for opt_key, opt in pipeline_options.items():
-                                if tran
+                                if transform['type'] == opt_key:
+                                    update_transform(opt, pipeline, idx, transform)
+                    elif isinstance(pipeline, dict):
+                        for _, pipe in pipeline.items():
+                            for idx, transform in enumerate(pipe):
+                                for opt_key, opt in pipeline_options.items():
+                                    if transform['type'] == opt_key:
+                                        update_transform(opt, pipe, idx, transform)
+                    else:
+                        raise NotImplementedError(f'pipeline type of {type(pipeline)} is not supported')
+                else:
+                    logger.info('no pipeline in the data split')
+
+            split = cfg.data.get(target)
+            if split is not None:
+                if isinstance(split, list):
+                    for sub_item in split:
+                        update_config(sub_item, pipeline_options)
+                elif isinstance(split, dict):
+                    update_config(split, pipeline_options)
+                else:
+                    logger.warning(f"type of split '{target}'' should be list or dict but {type(split)}")
+
+        logger.info('configure_data()')
+        logger.debug(f'[args] {cfg.data}')
+        pipeline_options = cfg.data.pop('pipeline_options', None)
+        if pipeline_options is not None and isinstance(pipeline_options, dict):
+            configure_split('train')
+            configure_split('val')
+            if not training:
+                configure_split('test')
+            configure_split('unlabeled')
+
+    @staticmethod
+    def configure_hook(cfg, **kwargs):
+        """Update cfg.custom_hooks based on cfg.custom_hook_options
+        """
+        def update_hook(opt, custom_hooks, idx, hook):
+            """Delete of update a custom hook
+            """
+            if isinstance(opt, dict):
+                if opt.get('_delete_', False):
+                    # if option include _delete_=True, remove this hook from custom_hooks
+                    logger.info(f"configure_hook: {hook['type']} is deleted")
+                    del custom_hooks[idx]
+                else:
+                    logger.info(f"configure_hook: {hook['type']} is updated with {opt}")
+                    hook.update(**opt)
+
+        custom_hook_options = cfg.pop('custom_hook_options', {})
+        logger.info(f"configure_hook() {cfg.get('custom_hooks', [])} <- {custom_hook_options}")
+        custom_hooks = cfg.get('custom_hooks', [])
+        for idx, hook in enumerate(custom_hooks):
+            for opt_key, opt in custom_hook_options.items():
+                if hook['type'] == opt_key:
+                    update_hook(opt, custom_hooks, idx, hook)
+
+    @staticmethod
+    def get_model_meta(cfg):
+        ckpt_path = cfg.get('load_from', None)
+        meta = {}
+        if ckpt_path:
+            ckpt = CheckpointLoader.load_checkpoint(ckpt_path, map_location='cpu')
+            meta = ckpt.get('meta', {})
+        return meta
+
+    @staticmethod
+    def get_data_cfg(cfg, subset):
+        assert subset in ["train", "val", "test"], f"Unknown subset:{subset}"
+        if 'dataset' in cfg.data[subset]:  # Concat|RepeatDataset
+            dataset = cfg.data[subset].dataset
+            while hasattr(dataset, 'dataset'):
+      
