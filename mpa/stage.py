@@ -265,4 +265,82 @@ class Stage(object):
         if 'dataset' in cfg.data[subset]:  # Concat|RepeatDataset
             dataset = cfg.data[subset].dataset
             while hasattr(dataset, 'dataset'):
-      
+                dataset = dataset.dataset
+            return dataset
+        else:
+            return cfg.data[subset]
+
+    @staticmethod
+    def get_data_classes(cfg):
+        data_classes = []
+        train_cfg = Stage.get_data_cfg(cfg, "train")
+        if 'data_classes' in train_cfg:
+            data_classes = list(train_cfg.pop('data_classes', []))
+        elif 'classes' in train_cfg:
+            data_classes = list(train_cfg.classes)
+        return data_classes
+
+    @staticmethod
+    def get_model_classes(cfg):
+        """Extract trained classes info from checkpoint file.
+        MMCV-based models would save class info in ckpt['meta']['CLASSES']
+        For other cases, try to get the info from cfg.model.classes (with pop())
+        - Which means that model classes should be specified in model-cfg for
+          non-MMCV models (e.g. OMZ models)
+        """
+        classes = []
+        meta = Stage.get_model_meta(cfg)
+        # for MPA classification legacy compatibility
+        classes = meta.get('CLASSES', [])
+        classes = meta.get('classes', classes)
+
+        if len(classes) == 0:
+            ckpt_path = cfg.get('load_from', None)
+            if ckpt_path:
+                classes = Stage.read_label_schema(ckpt_path)
+        if len(classes) == 0:
+            classes = cfg.model.pop('classes', cfg.pop('model_classes', []))
+        return classes
+
+    @staticmethod
+    def get_model_ckpt(ckpt_path, new_path=None):
+        ckpt = CheckpointLoader.load_checkpoint(ckpt_path, map_location='cpu')
+        if 'model' in ckpt:
+            ckpt = ckpt['model']
+            if not new_path:
+                new_path = ckpt_path[:-3] + 'converted.pth'
+            torch.save(ckpt, new_path)
+            return new_path
+        else:
+            return ckpt_path
+
+    @staticmethod
+    def read_label_schema(ckpt_path, name_only=True, file_name='label_schema.json'):
+        serialized_label_schema = []
+        if any(ckpt_path.endswith(extension) for extension in (".xml", ".bin", ".pth")):
+            label_schema_path = osp.join(osp.dirname(ckpt_path), file_name)
+            if osp.exists(label_schema_path):
+                with open(label_schema_path, encoding="UTF-8") as read_file:
+                    serialized_label_schema = json.load(read_file)
+        if serialized_label_schema:
+            if name_only:
+                all_classes = [labels['name'] for labels in serialized_label_schema['all_labels'].values()]
+            else:
+                all_classes = serialized_label_schema
+        else:
+            all_classes = []
+        return all_classes
+
+    @staticmethod
+    def set_inference_progress_callback(model, cfg):
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        time_monitor = None
+        if cfg.get('custom_hooks', None):
+            time_monitor = [hook.time_monitor for hook in cfg.custom_hooks if hook.type == 'OTEProgressHook']
+            time_monitor = time_monitor[0] if time_monitor else None
+        if time_monitor is not None:
+            def pre_hook(module, input):
+                time_monitor.on_test_batch_begin(None, None)
+
+            def hook(module, input, output):
+                time_monitor.on_test_batch_end(None, None)
