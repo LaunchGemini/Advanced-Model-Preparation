@@ -344,3 +344,5 @@ class Stage(object):
 
             def hook(module, input, output):
                 time_monitor.on_test_batch_end(None, None)
+            model.register_forward_pre_hook(pre_hook)
+            model.register_forward_hook(hook)
