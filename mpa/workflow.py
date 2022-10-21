@@ -53,4 +53,19 @@ class Workflow(object):
                     stage_kwargs[arg_name] = self.context[stage_name].get(output_key, None)
 
             # context will keep the results(path to model, etc) of each stage
-            # stage.run() returns 
+            # stage.run() returns a dict and each output data will be stored in each output key defined in config
+            self.context[stage.name] = stage.run(
+                stage_idx=i,
+                mode=mode,
+                # model_cfg and data_cfg can be changed by each stage. need to pass cloned one for the other stages
+                # note that mmcv's Config object manage its attributes inside of _cfg_dict so need to copy it as well
+                model_cfg=copy_config(model_cfg) if model_cfg is not None else model_cfg,
+                data_cfg=copy_config(data_cfg) if data_cfg is not None else data_cfg,
+                model_ckpt=model_ckpt,
+                # output_path=output_path+'/stage{:02d}_{}'.format(i, stage.name),
+                ir_path=ir_path,
+                **stage_kwargs
+            )
+            # TODO: save context as pickle after each stage??
+            self._call_wf_hooks('after_stage', i)
+        self._call_wf_hooks('after_workflow')
