@@ -1,0 +1,8 @@
+workflow_hooks:
+    - type: WFProfileHook
+      name: profile_hook
+
+stages:
+    - name: train
+      type: SegTrainer
+      task: segmentation
