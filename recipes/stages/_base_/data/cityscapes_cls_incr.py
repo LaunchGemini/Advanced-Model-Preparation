@@ -28,4 +28,8 @@ data = dict(
         type=__dataset_type,
         data_root=__data_root,
         img_dir='test/img',
-        ann_dir
+        ann_dir='test/anno',
+        split='test.txt',
+        classes=['background', 'person', 'car'],
+    )
+)
