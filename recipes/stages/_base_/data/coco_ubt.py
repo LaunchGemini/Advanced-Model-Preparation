@@ -28,4 +28,32 @@ data = dict(
                 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
                 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
                 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle',
-                'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich
+                'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange',
+                'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed',
+                'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave',
+                'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+                'hair drier', 'toothbrush'
+            ]
+    ),
+    unlabeled=dict(
+        type=__dataset_type,
+        img_file=None,
+        img_prefix=__data_root_path + 'train2017/',
+        filter_empty_gt=False,
+        pipeline=__unlabeled_pipeline,
+    ),
+    val=dict(
+        type=__dataset_type,
+        ann_file=__data_root_path + 'annotations/instances_val2017.json',
+        img_prefix=__data_root_path + 'val2017/',
+        test_mode=True,
+        pipeline=__test_pipeline,
+    ),
+    test=dict(
+        type=__dataset_type,
+        ann_file=__data_root_path + 'annotations/instances_val2017.json',
+        img_prefix=__data_root_path + 'val2017/',
+        test_mode=True,
+        pipeline=__test_pipeline,
+    ),
+)
