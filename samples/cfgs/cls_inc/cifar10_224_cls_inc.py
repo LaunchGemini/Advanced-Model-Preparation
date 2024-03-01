@@ -1,5 +1,5 @@
+
 # dataset settings
-# To create initial model for class incremnetal learning
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 
@@ -21,8 +21,16 @@ test_pipeline = [
 data = dict(
     samples_per_gpu=32,
     workers_per_gpu=4,
-    num_classes=5,
+    num_classes=6,
     train=dict(
+        type='ClsTVDataset',
+        base='CIFAR10',
+        data_prefix='data/torchvision/cifar10',
+        pipeline=train_pipeline,
+        new_classes=[6],
+        num_images=100
+    ),
+    train_old=dict(
         type='ClsTVDataset',
         base='CIFAR10',
         data_prefix='data/torchvision/cifar10',
@@ -34,15 +42,13 @@ data = dict(
         base='CIFAR10',
         data_prefix='data/torchvision/cifar10',
         pipeline=test_pipeline,
-        test_mode=True,
-        classes=[0, 1, 2, 3, 4]
+        classes=[0, 1, 2, 3, 4, 6]
     ),
     test=dict(
         type='ClsTVDataset',
         base='CIFAR10',
         data_prefix='data/torchvision/cifar10',
         pipeline=test_pipeline,
-        test_mode=True,
-        classes=[0, 1, 2, 3, 4]
+        classes=[0, 1, 2, 3, 4, 6]
     )
 )
