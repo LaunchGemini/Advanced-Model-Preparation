@@ -8,35 +8,28 @@ _base_ = [
     '../_base_/schedules/plateau.py',
 ]
 
-# Disabling until evaluation bug resolved
-# data = dict(
-#     val=dict(samples_per_gpu=2),
-#     test=dict(samples_per_gpu=2),
-# )
-
 optimizer = dict(
     lr=0.001,
     momentum=0.9,
     weight_decay=0.0001,
 )
 
-optimizer_config = dict(
-    _delete_=True,
-    type='SAMOptimizerHook',
-    start_epoch=1000,  # set 1 ~ total_epochs to enable
-    grad_clip=dict(
-        max_norm=35,
-        norm_type=2
-    )
-)
-
-lr_config = dict(min_lr=1e-06)
+lr_config = dict(
+    policy='ReduceLROnPlateau',
+    metric='mAP',
+    patience=5,
+    iteration_patience=0,
+    interval=1,
+    min_lr=0.000001,
+    warmup='linear',
+    warmup_iters=200,
+    warmup_ratio=1.0 / 3)
 
 evaluation = dict(
     interval=1,
-    metric='bbox',
+    metric='mAP',
     classwise=True,
-    save_best='bbox_mAP'
+    save_best='mAP'
 )
 
 custom_hooks = [
@@ -45,7 +38,7 @@ custom_hooks = [
         start=3,
         patience=10,
         iteration_patience=0,
-        metric='bbox_mAP',
+        metric='mAP',
         interval=1,
         priority=75,
     ),
