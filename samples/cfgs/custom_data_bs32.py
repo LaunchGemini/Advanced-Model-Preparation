@@ -39,4 +39,4 @@ data = dict(
         data_file=None,
         ann_file=None,
         pipeline=test_pipeline))
-eval
+evaluation = dict(metric='accuracy')
