@@ -1,14 +1,16 @@
+
 _base_ = [
     './pipelines/hflip_resize.py'
 ]
 
 __train_pipeline = {{_base_.train_pipeline}}
 __test_pipeline = {{_base_.test_pipeline}}
+__dataset_type = 'TVDatasetSplit'
 
 data = dict(
     samples_per_gpu=64,
     workers_per_gpu=4,
-    num_classes=10,
+    num_classes=5,
     pipeline_options=dict(
         Resize=dict(
             size=224
@@ -19,20 +21,27 @@ data = dict(
         )
     ),
     train=dict(
-        type='CIFAR10',
-        data_prefix='data/torchvision/cifar10',
-        pipeline=__train_pipeline
+        type=__dataset_type,
+        base='CIFAR10',
+        data_prefix='./data',
+        pipeline=__train_pipeline,
+        classes=[0, 1, 2, 3, 4]
+
     ),
     test=dict(
-        type='CIFAR10',
-        data_prefix='data/torchvision/cifar10',
+        type=__dataset_type,
+        base='CIFAR10',
+        data_prefix='./data',
         pipeline=__test_pipeline,
-        test_mode=True
+        test_mode=True,
+        classes=[0, 1, 2, 3, 4]
     ),
     val=dict(
-        type='CIFAR10',
-        data_prefix='data/torchvision/cifar10',
+        type=__dataset_type,
+        base='CIFAR10',
+        data_prefix='./data',
         pipeline=__test_pipeline,
-        test_mode=True
+        test_mode=True,
+        classes=[0, 1, 2, 3, 4]
     )
 )
