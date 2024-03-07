@@ -62,4 +62,11 @@ data = dict(
         pipeline=__test_pipeline,
         download=True
     ),
-    test
+    test=dict(
+        type=__dataset_type,
+        base=__dataset_base,
+        data_prefix='data/torchvision/cifar10',
+        pipeline=__test_pipeline,
+        test_mode=True
+    )
+)
