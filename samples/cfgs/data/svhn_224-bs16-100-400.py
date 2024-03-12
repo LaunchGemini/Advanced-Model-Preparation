@@ -33,4 +33,30 @@ data = dict(
             strong=__train_pipeline_strong
         ),
         samples_per_gpu=48,
-        workers_per_gpu
+        workers_per_gpu=2,
+        download=True,
+        use_labels=False
+    ),
+    val=dict(
+        type='ClsTVDataset',
+        base='SVHN',
+        split='train',
+        data_prefix='data/torchvision/svhn',
+        num_images=1400,
+        samples_per_gpu=64,
+        workers_per_gpu=4,
+        pipeline=__test_pipeline,
+        download=True,
+    ),
+    test=dict(
+        type='ClsTVDataset',
+        base='SVHN',
+        split='test',
+        data_prefix='data/torchvision/svhn',
+        num_images=-1,
+        samples_per_gpu=128,
+        workers_per_gpu=4,
+        pipeline=__test_pipeline,
+        download=True,
+    )
+)
