@@ -1,0 +1,5 @@
+model:
+    backbone:
+        type: OTEMobileNetV3
+        mode: small
+        width_mult: 1.0

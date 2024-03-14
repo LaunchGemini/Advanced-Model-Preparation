@@ -1,0 +1,6 @@
+_base_: ./ote_mobilenet_v3_small.yaml
+
+model:
+    backbone:
+        mode: large
+        width_mult: 0.75

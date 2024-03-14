@@ -1,0 +1,7 @@
+_base_: [
+  '../backbones/ote_mobilenet_v2_w1.yaml',
+  '../../../../recipes/stages/_base_/models/detectors/atss.custom.py'
+]
+
+model:
+  
