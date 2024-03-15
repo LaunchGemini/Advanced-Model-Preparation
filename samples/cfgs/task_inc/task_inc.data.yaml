@@ -18,4 +18,19 @@ data:
     data_file: 'csvs/dss18.data.csv'
     ann_file: 'csvs/dss18.anno.val.csv'
     tasks:
-      Age: [ "Other", "Senior", "Kids", "Unknown" 
+      Age: [ "Other", "Senior", "Kids", "Unknown" ]
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+  test:
+    type: LwfTaskIncDataset
+    data_prefix: '/media/hdd1/PAC_data/DSS18_person'
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.test.csv'
+    tasks:
+      Age: [ "Other", "Senior", "Kids", "Unknown" ]
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+evaluation:
+    metric: ['accuracy','f1_score']
